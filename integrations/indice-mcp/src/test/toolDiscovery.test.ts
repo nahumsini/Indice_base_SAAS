@@ -15,7 +15,7 @@ const context = {
 };
 
 // Resolve local schema references independently to compare the complete published
-// validation contract with the SDK registration, including every nested constraint.
+// input contract with the SDK registration, including every nested constraint.
 function expandedSchema(schema: unknown): unknown {
   if (!schema || typeof schema !== "object" || Array.isArray(schema)) return schema;
   const root = schema as Record<string, unknown>;
@@ -36,7 +36,7 @@ function expandedSchema(schema: unknown): unknown {
   return result;
 }
 
-test("complete HTTP tool discovery has bounded pages and preserves every actual tool contract", async () => {
+test("complete HTTP discovery preserves inputs and metadata with bounded output envelopes", async () => {
   const unused = async (): Promise<never> => { throw Error("Unexpected fixture operation"); };
   const server = createIndiceMcpServer({ getSalesToday: unused, getBusinessSnapshot: unused,
     previewCreateTask: unused, createTask: unused });
@@ -46,12 +46,21 @@ test("complete HTTP tool discovery has bounded pages and preserves every actual 
   const fixture = await httpFixture((async input => String(input).endsWith("/capabilities")
     ? json({ version: "v1", tools: Object.keys(toolScopes) }) : json(context)) as typeof fetch);
   const client = new Client({ name: "paginated-catalog-contract", version: "1" });
+  const wirePageBytes: number[] = [];
   try {
     const expected = new Map((await reference.listTools()).tools.map(tool => [tool.name, tool]));
     // Synchronous SDK schema compilation can outlast this co-located fixture's idle socket.
     // Fresh connections keep metadata assertions independent of idle keep-alive timing.
     await client.connect(new StreamableHTTPClientTransport(fixture.url, {
-      requestInit: { headers: { Authorization: "Bearer idx_ai_synthetic_A", Connection: "close" } }
+      requestInit: { headers: { Authorization: "Bearer idx_ai_synthetic_A", Connection: "close" } },
+      fetch: (async (input, init) => {
+        const response = await fetch(input, init);
+        if (typeof init?.body === "string" && JSON.parse(init.body).method === "tools/list") {
+          // Include SSE/JSON-RPC framing and descriptor extensions stripped by the SDK parser.
+          wirePageBytes.push(Buffer.byteLength(await response.clone().text()));
+        }
+        return response;
+      }) as typeof fetch
     }));
     const names = new Set<string>();
     let cursor: string | undefined;
@@ -62,18 +71,18 @@ test("complete HTTP tool discovery has bounded pages and preserves every actual 
       const page = await client.listTools(cursor ? { cursor } : undefined);
       assert.ok(page.tools.length > 0 && page.tools.length <= 64, "Discovery must not send the full catalog in one response");
       const bytes = Buffer.byteLength(JSON.stringify(page));
-      assert.ok(bytes < 4 * 1024 * 1024, "A discovery page exceeded the reviewed wire-size budget");
+      assert.ok(bytes < 256 * 1024, "A discovery page exceeded the reviewed wire-size budget");
       largestPageBytes = Math.max(largestPageBytes, bytes);
       catalogBytes += bytes;
       if (pages === 0) assert.ok(page.tools.some(tool => tool.name === "get_my_business_context"));
       for (const tool of page.tools) {
         assert.ok(!names.has(tool.name), "Repeated discovery tool");
-        const original = expected.get(tool.name)!;
-        assert.deepEqual({ ...tool, inputSchema: expandedSchema(tool.inputSchema),
-          outputSchema: expandedSchema(tool.outputSchema) },
-        { ...original, inputSchema: expandedSchema(original.inputSchema),
-          outputSchema: expandedSchema(original.outputSchema) },
-        "Complete input/output constraints, annotations and OAuth metadata must remain intact");
+        const { outputSchema, ...original } = expected.get(tool.name)!;
+        assert.ok(outputSchema, "Every registered tool must retain its complete server output validator");
+        assert.deepEqual(tool.outputSchema, { type: "object" }, "HTTP must advertise the compact object output contract");
+        assert.deepEqual({ ...tool, inputSchema: expandedSchema(tool.inputSchema) },
+          { ...original, inputSchema: expandedSchema(original.inputSchema), outputSchema: { type: "object" } },
+          "Complete input constraints, annotations and OAuth metadata must remain intact");
         names.add(tool.name);
       }
       cursor = page.nextCursor;
@@ -82,11 +91,47 @@ test("complete HTTP tool discovery has bounded pages and preserves every actual 
     assert.ok(pages > 1);
     assert.deepEqual([...names].sort(), [...expected.keys()].sort());
     assert.equal(names.size, Object.keys(toolScopes).length);
-    assert.ok(catalogBytes < 8 * 1024 * 1024, "The complete discovery catalog exceeded its aggregate wire budget");
+    assert.ok(catalogBytes < 1024 * 1024, "The complete discovery catalog exceeded its aggregate wire budget");
     assert.ok(pages <= 10, "Full-catalog import needs too many discovery round trips");
+    assert.equal(wirePageBytes.length, pages);
+    assert.ok(Math.max(...wirePageBytes) < 256 * 1024, "An actual HTTP discovery response exceeded its wire budget");
+    const actualWireBytes = wirePageBytes.reduce((total, bytes) => total + bytes, 0);
+    assert.ok(actualWireBytes < 1024 * 1024, "Actual HTTP discovery exceeded the aggregate wire budget");
     assert.deepEqual((await client.callTool({ name: "get_my_business_context", arguments: {} })).structuredContent, context);
-    console.log(JSON.stringify({ discoveryTools: names.size, pages, largestPageBytes, catalogBytes }));
+    console.log(JSON.stringify({ discoveryTools: names.size, pages, largestPageBytes, catalogBytes,
+      actualWireBytes, largestWirePageBytes: Math.max(...wirePageBytes) }));
   } finally { await client.close(); await fixture.close(); await reference.close(); await server.close(); }
+});
+
+test("discovery projection does not remove registered output validation or change HTTP results", async () => {
+  const unused = async (): Promise<never> => { throw Error("Unexpected fixture operation"); };
+  const server = createIndiceMcpServer({ getSalesToday: unused, getBusinessSnapshot: unused,
+    previewCreateTask: unused, createTask: unused,
+    getMyBusinessContext: async () => ({ ...context, companyId: -1 }) }, new Set(["get_my_business_context"]));
+  const reference = new Client({ name: "server-output-validation", version: "1" });
+  const [left, right] = InMemoryTransport.createLinkedPair();
+  await server.connect(right); await reference.connect(left);
+  let malformed = false;
+  const fixture = await httpFixture((async input => String(input).endsWith("/capabilities")
+    ? json({ version: "v1", tools: ["get_my_business_context"] })
+    : json({ ...context, ...(malformed ? { companyId: -1 } : {}) })) as typeof fetch);
+  try {
+    const registered = (await reference.listTools()).tools[0]!;
+    assert.ok(registered.outputSchema, "Stdio must keep its complete output schema");
+    const rejected = await reference.callTool({ name: "get_my_business_context", arguments: {} });
+    assert.equal(rejected.isError, true, "The registered SDK output validator must reject invalid owner results");
+    assert.match(JSON.stringify(rejected.content), /Output validation error/);
+    assert.equal(rejected.structuredContent, undefined);
+
+    const client = await fixture.client();
+    const published = (await client.listTools()).tools[0]!;
+    assert.deepEqual(published.outputSchema, { type: "object" });
+    assert.deepEqual((await client.callTool({ name: "get_my_business_context", arguments: {} })).structuredContent, context);
+    malformed = true;
+    const invalid = await client.callTool({ name: "get_my_business_context", arguments: {} });
+    assert.equal(invalid.isError, true, "Invalid backend output must still fail after HTTP discovery");
+    assert.equal(invalid.structuredContent, undefined);
+  } finally { await fixture.close(); await reference.close(); await server.close(); }
 });
 
 test("discovery continuations reauthorize and reject changed or different grant catalogs", async () => {

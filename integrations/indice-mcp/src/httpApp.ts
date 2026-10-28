@@ -200,14 +200,16 @@ export function createIndiceHttpApp(config: IndiceMcpConfig, dependencies: HttpD
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
       const send = transport.send.bind(transport);
       transport.send = async (message, options) => {
-        // SDK 1.x preserves _meta but does not emit this OpenAI descriptor extension.
-        // Mirror it at the wire boundary without replacing SDK discovery/schema handling.
+        // Keep the SDK's complete input/output validators for execution. HTTP
+        // advertises only the output's object envelope: ChatGPT rejects the detailed
+        // aggregate catalog. structuredContent and stdio schemas stay unchanged.
+        // SDK 1.x preserves _meta but needs the OAuth extension mirrored here.
         if (method === "tools/list" && "result" in message && Array.isArray(message.result.tools)) {
           message = { ...message, result: { ...message.result,
             ...(discoveryPage?.nextCursor ? { nextCursor: discoveryPage.nextCursor } : {}),
-            tools: message.result.tools.map(descriptor => ({ ...descriptor,
+            tools: message.result.tools.map(({ outputSchema: _outputSchema, ...descriptor }) => ({ ...descriptor,
               inputSchema: compactToolSchema(descriptor.inputSchema),
-              ...(descriptor.outputSchema ? { outputSchema: compactToolSchema(descriptor.outputSchema) } : {}),
+              ...(_outputSchema ? { outputSchema: { type: "object" as const } } : {}),
               securitySchemes: descriptor._meta?.securitySchemes })) } };
         }
         // Inspect only the result flag, never serialize or log business payloads.

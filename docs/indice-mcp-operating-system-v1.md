@@ -379,16 +379,25 @@ HTTP `tools/list` uses standard MCP cursor pagination, with at most 64 authorize
 response. Every continuation obtains the current capability manifest again; its opaque cursor
 selects an offset in the current authorized-name catalog and never supplies user, company or
 permission authority. A changed catalog rejects the continuation and requires restarting discovery.
-The first page includes `get_my_business_context` when authorized. All input/output constraints,
+The first page includes `get_my_business_context` when authorized. All input constraints,
 annotations, OAuth security metadata and named operations remain unchanged and reachable by
-following `nextCursor`; `tools/call` remains independent of discovery pagination. HTTP metadata
-may losslessly encode repeated subschemas as local JSON Schema `definitions`/`$ref` references.
+following `nextCursor`; `tools/call` remains independent of discovery pagination. HTTP discovery
+publishes the compact `outputSchema: {"type":"object"}` envelope instead of the detailed output tree under the
+[HTTP catalog compatibility decision](decisions/2026-10-28-mcp-http-output-schema-compatibility.md).
+Complete output schemas remain registered and enforced by the SDK on every invocation and remain
+published over stdio. Actual `structuredContent` and text/error responses are unchanged. HTTP
+consumers validate only the object envelope from discovery; complete server validation and the
+domain owner remain authoritative. This is a metadata transport adaptation, not removal of a tool,
+field, permission check, confirmation or validation rule.
+HTTP input metadata may losslessly encode repeated subschemas as local JSON Schema `definitions`/`$ref` references.
 Only schema locations are transformed; literal defaults, examples, enum and const data remain
 untouched. Schemas with existing reference scopes, definitions or nested dialects are preserved
 without rebasing. Registered validators, stdio descriptors and business results remain unchanged.
-Full-catalog HTTP regression must expand generated local references and compare every complete
-descriptor with actual registration, with no omitted/duplicate tools, a maximum 4 MiB per page,
-8 MiB aggregate and ten-round-trip budget for the current complete catalog. These are repository
+Full-catalog HTTP regression must expand generated input references and compare every descriptor
+with actual registration except the deliberately compact output-schema field, with no omitted or
+duplicate tools. It must also verify retained server output validation and unchanged valid results.
+The actual HTTP response, including framing and extensions, has a maximum 256 KiB per page,
+1 MiB aggregate and ten-round-trip budget for the current complete catalog. These are repository
 transport budgets, not claimed OpenAI limits. Real ChatGPT action discovery remains a separate
 acceptance check; compliant SDK discovery alone cannot establish that acceptance.
 

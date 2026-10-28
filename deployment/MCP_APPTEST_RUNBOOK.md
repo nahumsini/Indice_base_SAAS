@@ -106,10 +106,14 @@ Valida, en este orden:
 - El `401` anuncia la metadata OAuth pública de APPTEST.
 - Los dos documentos `/.well-known/` responden por HTTPS y anuncian APPTEST, no producción.
 - ChatGPT muestra el consentimiento de Índice y vuelve con un token mediante PKCE.
-- El cliente recorre todas las páginas `tools/list` con `nextCursor` y conserva los esquemas,
+- El cliente recorre todas las páginas `tools/list` con `nextCursor` y conserva los esquemas de entrada,
   anotaciones y permisos de cada herramienta autorizada. Cada página tiene hasta 64 herramientas;
   ante un catálogo cambiado, reinicia sin cursor. Comprueba aparte que ChatGPT termina el
   descubrimiento de acciones; OAuth y HTTP `200` no certifican esa importación.
+  HTTP anuncia el contrato compacto `outputSchema: {"type":"object"}`; los esquemas completos
+  siguen registrados y validados por el SDK y publicados en stdio. Comprueba una respuesta
+  válida sin cambios y el rechazo de una respuesta inválida. El presupuesto de regresión
+  incluye el HTTP real: 256 KiB por página y 1 MiB agregado; no son límites oficiales de OpenAI.
 - Un acceso revocado o vencido devuelve `401`.
 - Desde ChatGPT, “¿cuánto vendí hoy?” coincide con Índice.
 - Una acción de escritura exige confirmación y deja auditoría.
