@@ -71,7 +71,7 @@ it does not establish real OAuth, ChatGPT import or voice acceptance.
 
 The first protected VPS preflight failed when its disposable MySQL exceeded the
 768 MiB memory limit assigned for that attempt. Its log was retained and the full
-canonical preflight is being repeated with the previously proven 1,152 MiB database
+canonical preflight was repeated with the previously proven 1,152 MiB database
 budget and a separate 3 GiB process cap. No test used production or the functional
 database, and production services stayed healthy. This failed attempt is not PASS.
 The complete clean repetition subsequently passed: **4,243 Java tests**, zero
@@ -107,9 +107,41 @@ are unchanged; compatible MCP recovery is the current `12593ec9` image
   App Test containers, settings and mounts. The activation guard requires a running
   exact-image container as well as readiness; the compatible original is retained.
 
-Production activation has not occurred. These results do not establish successful
-ChatGPT import of this encoding. The [component publication decision](../decisions/2026-10-28-mcp-compaction-publication.md)
-records the exact artifact, requested scope and fresh authority boundary. Historical
-Stripe TEST-key revocation remains HIGH and unresolved; its prior closed exception
-cannot be reused. Real-client App Test/import/read acceptance remains UNKNOWN for
-this source until the intended client completes it.
+## Production activation and actual ChatGPT review
+
+The owner explicitly authorized this exact component and bounded exception under
+the [publication decision](../decisions/2026-10-28-mcp-compaction-publication.md).
+The MCP-only activation completed at **2026-10-28T01:11:35.114855+00:00** with the
+prepared immutable image. The prior `12593ec9` container is retained stopped with
+its complete original configuration for compatible recovery. All other seven
+production/App Test containers, settings and mounts remain unchanged. Five
+protected files, V365 history, billing/subscriptions and access are preserved;
+public HTML/security headers, public MCP/OAuth smoke and full service smoke pass.
+
+One normal **Actualizar herramientas** action used the existing personally approved
+OAuth grant. ChatGPT authenticated successfully and performed two complete
+ten-page traversals: twenty `tools/list` responses returned HTTP 200 between
+**01:12:34.739Z and 01:13:20.457Z**. The server catalog contains all 608 tools.
+Nevertheless, the client showed **“No se ha podido actualizar la aplicación.
+Inténtalo de nuevo”**, and its actual application dialog showed **“No hay
+herramientas disponibles para esta aplicación.”**
+
+Actual ChatGPT import is **FAIL**. The real `get_my_business_context` read was
+**NOT RUN**, because no tool was imported; no `tools/call`, new agent-granted
+consent or business mutation occurred. Successful OAuth and all-page HTTP transport
+do not establish platform-side import acceptance. The internal rejection reason
+remains UNKNOWN; the earlier fifteen-page cutoff alone did not explain the failure.
+No duplicate connection, repeated manual import loop or second activation occurred.
+App Test real-client acceptance remains UNKNOWN. Historical Stripe TEST-key
+revocation remains HIGH and unresolved.
+
+Five-minute service observation **PASS**: six samples from **01:11:55.232Z** to
+**01:16:56.247Z**, all web/API/MCP/storage HTTP 200, zero restarts and new service
+errors. Final protected-state verification passed again. Sanitized activation,
+client and closeout proofs are preserved off-host with checked hashes. No rollback
+was executed: the active service is healthy, while the previous version also
+failed client import and is not an established remedy for that failure.
+
+The bounded authority closed at **2026-10-28T01:17:23.017347+00:00** and cannot be
+reused. Branch and main include the exact runtime and these separate outcome
+records. Healthy publication does not change actual client import FAIL into PASS.

@@ -63,6 +63,13 @@ Exact immutable MCP image:
 Prior real-client failures remain FAIL and the new client result remains UNKNOWN
 until verified. This does not authorize fresh OAuth consent, business mutations,
 another source, another activation or changes to backend/web/storage/App Test.
+The MCP-only activation, public/service smoke, protected-state preservation and
+five-minute observation passed. Actual ChatGPT authenticated and fetched both
+complete ten-page traversals, but rejected the update and exposed no tools:
+actual import **FAIL**, real read **NOT RUN**. The authority closed at
+**2026-10-28T01:17:23.017347+00:00** and cannot be reused. The previous MCP is
+retained for recovery. [Actual evidence](validation/2026-10-27-mcp-catalog-compaction.md#production-activation-and-actual-chatgpt-review)
+distinguishes healthy publication from the unresolved client acceptance failure.
 
 For OAuth/Marketing application source `5e6a227ecf218b8698b750c9dfd36d85ac2b354f`
 only, the owner separately authorized a production-only activation while keeping

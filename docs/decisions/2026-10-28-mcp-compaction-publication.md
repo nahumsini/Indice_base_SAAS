@@ -2,7 +2,8 @@
 
 Date: 2026-10-28 (UTC).
 
-Status: PUBLICATION AUTHORIZED; TECHNICAL PREPARATION PASS; NOT YET ACTIVATED.
+Status: ACTIVATED; TECHNICAL OBSERVATION PASS; ACTUAL CHATGPT IMPORT FAIL;
+AUTHORITY CLOSED.
 
 The owner answered **“Autorizar excepción puntual y publicación”** to the exact
 `02881da5` production-only MCP proposal. Authority was recorded at
@@ -13,6 +14,26 @@ revocation and replaces only the timing of real-client acceptance: technical smo
 first, then actual ChatGPT import and one read in production. App Test keeps its
 current version. This is fresh authority, not reuse of the closed `12593ec9` window.
 No new OAuth consent or business mutation is authorized.
+
+The one MCP-only activation passed at **2026-10-28T01:11:35.114855+00:00**.
+Public/service smoke, exact-image readiness, protected-state preservation and six
+healthy samples spanning five minutes passed. The previous MCP container remains
+available stopped with its original configuration; no rollback or second
+activation was executed. Backend/web/storage/schema and App Test are unchanged.
+
+Actual ChatGPT authentication succeeded and one manual update caused two complete
+ten-page traversals (twenty HTTP 200 catalog responses). However, the client
+rejected the update and displayed no available tools. Actual import is **FAIL**;
+the real read is **NOT RUN**, because no tool was imported. Its internal rejection
+reason remains UNKNOWN. The active component is healthy and preserves all tool
+contracts; the preceding version also failed import, so reverting is not an
+established client-side remedy. Recovery remains retained, not claimed as exercised
+against this new client failure. See the [actual evidence](../validation/2026-10-27-mcp-catalog-compaction.md#production-activation-and-actual-chatgpt-review).
+
+This exception closed at **2026-10-28T01:17:23.017347+00:00** after the one
+activation, observation and bounded review. It cannot be reused. Stripe TEST-key
+revocation remains HIGH and unresolved; technical publication does not certify
+the connection or replace actual client acceptance.
 
 The owner requested “despliegalo” for runtime source
 `02881da5b576c20fb6924fc19ef8d612ef42ee26`. The
@@ -54,12 +75,11 @@ backup, disconnected restore/recovery, capacity and preservation checks must pas
 Tests use isolated databases and synthetic data; they never use production as a
 test fixture or claim actual ChatGPT acceptance.
 
-The previous publication exception closed and cannot be reused. Historical Stripe
-TEST-key revocation remains HIGH and unresolved. A fresh explicit owner decision
-must cover only its bounded deferral for this component and source, and the timing
-replacement that performs actual ChatGPT import/read acceptance in production
-after technical smoke instead of first changing App Test. This does not mark
-existing real-client FAIL/UNKNOWN evidence as PASS.
+The previous publication exception was not reused. The fresh explicit owner
+decision above covered only this component/source's bounded Stripe TEST-key
+deferral and the timing replacement for actual ChatGPT import/read acceptance in
+production after technical smoke instead of first changing App Test. This does
+not mark existing real-client FAIL/UNKNOWN evidence as PASS.
 
 If authorized, record the actual reply, UTC start/expiry and immutable image digest
 before activation. The window covers one MCP-only production activation, a
