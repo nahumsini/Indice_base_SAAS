@@ -90,6 +90,57 @@ Sanitized audit/comparison and test logs are retained in
 source is separate from the ERP repository. No secret-bearing Site tool responses
 or credentials are copied into this record or the source tree.
 
+## Exact-source production preparation
+
+The owner requested production publication for testing. Runtime source
+`6302037f940ed960aa14c2d0bc366a58b1cff4d5` is on the working branch and main.
+At **2026-10-28T02:49:59.333676+00:00**, technical preparation passed; activation
+and actual production ChatGPT acceptance remain pending under the
+[bounded publication proposal](../decisions/2026-10-28-mcp-compact-output-publication.md).
+
+Immutable MCP image: `indice-erp-mcp:6302037f940e-secure`,
+`sha256:a962dea27500a53977decd5486a5ba1c02ac90cf2dc1fff50eb1807cae1220b8`.
+All compiled files match the exact source. Only `httpApp` and discovery-test
+JavaScript/source maps differ from the retained MCP; base runtime/dependency
+layers and defaults are unchanged. Recovery is current `02881da5`,
+`sha256:32e0f0377438f3630009531ee82a1866ed565d78cd21b288ae5b50c5c9c210e1`.
+Backend, web, storage, schema V365 and App Test remain unchanged.
+
+- [Exact-source CI](https://github.com/nahumsini/Indice_base_SAAS/actions/runs/40618893952):
+  PASS, including isolated backend/frontend tests, actual MinIO, images and Nginx.
+- Complete protected production preflight: PASS; **4,243 Java cases**, zero
+  failures/errors and three established skips; **196 MCP/deployment TAP cases**,
+  zero failures; frontend typecheck/build passed. Tests used disposable MySQL.
+  The first attempt failed before backend execution because its transient service
+  lacked standard `HOME`. That log remains FAIL. The complete repetition supplied
+  the standard root home and passed; no skipped phase is relabeled as a full pass.
+- Synthetic continuity: **1,200 seconds, 238 rounds, 2,571 backend attempts**,
+  maximum sampled heap **56 MiB**. Runtime hashes match the immutable image.
+  This does not establish real OAuth, ChatGPT import/read or voice acceptance.
+- Exact-image regressions: **28 PASS**, zero failures/skips. Both complete Nginx
+  configurations pass their isolated traffic regressions. The actual MCP-only
+  create/failure/recovery rehearsal and canonical host-network dry run pass.
+- Source/delta scans: zero actual current secrets; twenty byte-identical reviewed
+  fixtures/placeholders. Verified OCI exports and current scans/SBOMs show zero
+  HIGH/CRITICAL or secret findings for MCP, its recovery image and web. The
+  unchanged backend retains two separately reviewed Spring findings; absence of
+  applicable exposure and the two MVC regressions were rechecked. This is
+  applicability evidence, not a Spring patch or security certification.
+- Backup **`production-20261028T024427Z`** includes complete SQL, objects,
+  configuration and five required protected files. Off-host hashes, protected
+  files and compressed streams passed. Candidate/recovery startup against the
+  disconnected restore passed with SELECT-only application authority, providers/
+  jobs/events disabled. All original raw columns/rows, V365 lineage, objects,
+  billing/subscriptions and access are preserved.
+- The original eight production/App Test containers and protected configuration
+  remain unchanged. Capacity and final configuration checks passed. Technical
+  preparation does not activate a service or reopen the previous closed authority.
+
+Sanitized release proofs and protected off-host backups are retained separately
+under `/private/tmp/indice-mcp-envelope-release-20261028/`. The historical Stripe
+TEST-key revocation is still HIGH and unresolved. A fresh bounded owner decision
+is required before activation; the previous one-attempt exception is closed.
+
 ## Official documentation consulted
 
 OpenAI's [troubleshooting guidance](https://developers.openai.com/plugins/deploy/troubleshooting)

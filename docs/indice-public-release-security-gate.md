@@ -49,6 +49,18 @@ branch without review.
 
 ## 3. Evidence Status
 
+For MCP runtime source `6302037f940ed960aa14c2d0bc366a58b1cff4d5`, the owner
+requested publication for production testing. Exact-source technical preparation
+passed at **2026-10-28T02:49:59.333676+00:00**, as recorded in the
+[compact-output proposal](decisions/2026-10-28-mcp-compact-output-publication.md).
+Immutable MCP image is
+`sha256:a962dea27500a53977decd5486a5ba1c02ac90cf2dc1fff50eb1807cae1220b8`.
+No production or App Test activation has occurred. Historical Stripe TEST-key
+revocation remains HIGH and unresolved; a fresh bounded owner decision is pending.
+The previous closed authority is not reused. Real production ChatGPT import/read
+acceptance remains UNKNOWN; a successful isolated import does not establish it.
+All other technical, security, integrity, backup/recovery and monitoring gates apply.
+
 For MCP runtime source `02881da5b576c20fb6924fc19ef8d612ef42ee26`, the owner
 answered “Autorizar excepción puntual y publicación” under the
 [compact-catalog publication decision](decisions/2026-10-28-mcp-compaction-publication.md).
