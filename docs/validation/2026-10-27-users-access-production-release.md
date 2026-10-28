@@ -1,6 +1,6 @@
 # Users access correction — production release preparation
 
-Date: 2026-10-27 (America/Toronto). Status: TECHNICALLY PREPARED and freshly AUTHORIZED; production activation pending.
+Date: 2026-10-27 (America/Toronto). Status: PRODUCTION ACTIVATED; observation PASS; scoped authority CLOSED.
 
 Source candidate: `89a5afa6c914a243211ab957283597ca4c02baf2` on
 `codex/fix-users-module-access-20261028`. The owner requested deployment so they can assign modules
@@ -64,7 +64,7 @@ run is relabeled as an exact-candidate PASS.
 | Disconnected candidate/recovery | Network none, events disabled, application SELECT-only; full original rows/columns, objects, history V365, billing and access compare identically | PASS |
 | Runtime/proxy/configuration | Exact immutable image tests, both Nginx configurations, protected real environment and recovery regressions | PASS |
 | Canonical dry run/capacity | Host-network dry run; protected runtime/App Test unchanged; 92,252,848,128 free bytes, above the 10 GiB floor | PASS |
-| Production activation/observation | No activation authority or attempt yet | PENDING |
+| Production activation/observation | One application activation, exact original MinIO recovery, complete preservation/public smoke and six samples over five minutes | PASS |
 | Human original-incident acceptance | Original failing HTTP response unavailable; no production user/access write in this review | UNKNOWN |
 
 The three preflight omissions are the explicit V289 schema-upgrade rehearsal (N/A for this unchanged
@@ -109,3 +109,29 @@ The owner answered **“Autorizar excepción y despliegue”**, recorded at
 **2026-10-28T04:21:51+00:00**, expiring no later than **2026-10-28T06:21:51+00:00**
 and closing earlier after this attempt and its observation. That fresh authority has now been recorded.
 No provider, entitlement, user or permission mutation is authorized by technical readiness.
+
+## Production activation and final verification
+
+- Canonical application activation started: **2026-10-28T04:22:29Z**; backend/web use runtime source `89a5afa6`.
+- Complete post-activation preservation and smoke passed: **2026-10-28T04:26:30Z**.
+- Observation: six samples from **2026-10-28T04:26:30.701Z** through **2026-10-28T04:31:31.690Z**, at least 300 seconds.
+  Web, API, MCP and storage returned HTTP 200, with zero restarts and zero new backend errors.
+- Final runtime verification: **2026-10-28T04:31:32.586872+00:00**. Exact images, same protected runtime settings,
+  mounts and secret-file hashes, V365/history, prices/subscriptions and access baseline all passed.
+  App Test retains its original container identities, images, configuration and data.
+- The [bounded authority](../decisions/2026-10-27-users-access-production-release.md) closed at
+  **2026-10-28T04:31:32.589449+00:00** and cannot be reused. Stripe TEST historical revocation remains HIGH/unresolved.
+- Human confirmation of the original distributor incident remains UNKNOWN. Original HTTP evidence
+  is still unavailable; no production permission mutation was used to manufacture acceptance.
+
+The initial post-activation check **FAILED** on unused provider-file path variables inherited by
+the recreated MinIO container from the full environment file. MinIO-specific settings/image/mounts
+were already identical. The exact original container/environment was recovered within this same
+attempt, and the unmodified preservation check then passed. Backend/web stayed on the same new
+images throughout; there was no second application activation or permission/data repair. The
+recreated same-image MinIO container is retained stopped, alongside compatible app recovery.
+
+This wrapper environment-projection issue is recorded as release-operational follow-up. It was
+resolved for this deployment by exact container recovery, not by ignoring configuration drift or
+changing unrelated deployment code in the Users correction. Initial failed checks remain failures;
+only the final verified state and complete observation are reported PASS.

@@ -58,9 +58,15 @@ The [prepared proposal](decisions/2026-10-27-users-access-production-release.md)
 The owner answered **“Autorizar excepción y despliegue”**, recorded at
 **2026-10-28T04:21:51+00:00** for exactly the named source/images. Fresh authority expires
 no later than **2026-10-28T06:21:51+00:00** and closes earlier with the single production
-activation, five-minute observation and bounded read-only review. Activation is still **PENDING**.
+activation, five-minute observation and bounded read-only review. One application activation
+started at **2026-10-28T04:22:29Z**. Basic smoke passed, and the first preservation check caught unused APP
+provider-file path drift on the recreated MinIO container. Exact original MinIO environment recovery
+completed within this attempt; no second app activation or weaker guard was used. Full preservation/
+smoke passed at **2026-10-28T04:26:30Z**. Six samples over at least five minutes passed through **2026-10-28T04:31:31.690Z**,
+with zero restarts/new backend errors and unchanged App Test/settings/billing/access/schema.
+Authority closed at **2026-10-28T04:31:32.589449+00:00** and cannot be reused.
 Historical Stripe TEST-key revocation remains HIGH and unresolved; only its bounded deferral
-is accepted, prior exceptions are not reused and all other gates remain applicable.
+was accepted for this now-closed window. Prior exceptions were not reused; all other gates remain applicable.
 Human acceptance of the original distributor incident remains UNKNOWN. No user, grant, entitlement,
 provider, price or production business write is part of this release verification.
 

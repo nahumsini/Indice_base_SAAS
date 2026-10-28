@@ -1,6 +1,6 @@
 # Users access correction — production publication proposal
 
-Date: 2026-10-27 (America/Toronto). Status: AUTHORIZED for the single exact production activation and observation below.
+Date: 2026-10-27 (America/Toronto). Status: PRODUCTION ACTIVATED; observation PASS; authority CLOSED and cannot be reused.
 
 The owner requested deploying the reviewed Users/access correction so they can assign modules
 to distributors. Candidate source is `89a5afa6c914a243211ab957283597ca4c02baf2`.
@@ -52,9 +52,9 @@ records totals, omissions, exact scope and limits.
 - Compatible previous backend: `sha256:2cb8872f88de748bdc9ce6199ed39f6433f7c78665ac104be786d176cd89263e`.
 - Unchanged MCP: `sha256:a962dea27500a53977decd5486a5ba1c02ac90cf2dc1fff50eb1807cae1220b8`.
 
-Historical revocation is still pending. No production activation has occurred. The fresh owner
-question must name source `89a5afa6` and this production-only publication; prior closed answers
-are not authority for this candidate.
+At preparation time historical revocation remained pending and no activation had occurred.
+The fresh question named source `89a5afa6` and this exact production-only publication;
+the acceptance and completed attempt are recorded below. Prior closed answers were not reused.
 
 ## Fresh owner acceptance
 
@@ -67,4 +67,26 @@ defers only that finding for this bounded window. All technical/security/data-in
 rollback, unchanged App Test and provider/business authority boundaries remain in force. Human
 product acceptance remains UNKNOWN until the owner tests the flow. No prior closed answer was reused.
 
-Activation is not yet claimed complete. The window will be closed explicitly after the attempt.
+The single activation and its final observation are now recorded below.
+
+## Completed attempt and closure
+
+One canonical application activation began at **2026-10-28T04:22:29Z**. Its basic smoke passed. The first
+post-activation environment comparison failed on MinIO: the whole-environment wrapper had forwarded
+five unused `APP_*_FILE` provider path values from a newer durable-input layout. MinIO's actual
+`MINIO_*` settings, image, entrypoint, command and data mount were identical. The exact original
+stopped MinIO container was recovered, preserving even its unused environment values. The recreated
+same-image storage container remains stopped; backend/web were not activated a second time and no
+guard was weakened. This recovery occurred within the authorized compatible-recovery scope.
+
+Full preservation, public/service smoke and security-boundary checks passed at **2026-10-28T04:26:30Z**.
+Six samples spanning at least five minutes passed through **2026-10-28T04:31:31.690Z**: web/API/MCP/storage HTTP 200,
+zero service restarts and zero new backend errors. A final runtime check confirms exact images,
+protected settings/mounts/files, unchanged V365 history, billing/subscriptions/access and unchanged
+App Test. Compatible previous backend/web images and the verified backup are retained.
+
+Authority closed at **2026-10-28T04:31:32.589449+00:00**, earlier than its maximum expiry. **This exception window is
+closed and cannot be reused.** Historical Stripe TEST-key revocation remains HIGH and unresolved;
+the bounded deferral has ended. No production user, module/tab grant, entitlement, price, provider
+activation or OAuth consent was changed by this verification. Human acceptance of the original
+distributor save remains UNKNOWN until the owner tests it; technical publication is not that proof.
