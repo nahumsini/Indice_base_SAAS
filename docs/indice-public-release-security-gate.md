@@ -49,6 +49,17 @@ branch without review.
 
 ## 3. Evidence Status
 
+For Users/access runtime source `89a5afa6c914a243211ab957283597ca4c02baf2`, the owner requested production
+publication to assign modules to distributors. Exact-source CI, protected preflight, immutable
+images/scans, fresh off-host backup, disconnected candidate/recovery restoration, protected
+configuration/runtime checks and canonical dry run passed at **2026-10-28T04:20:07.614469+00:00**.
+The [prepared proposal](decisions/2026-10-27-users-access-production-release.md) and
+[evidence](validation/2026-10-27-users-access-production-release.md) identify the exact images.
+Production activation is **PENDING**: historical Stripe TEST-key revocation remains HIGH and
+unresolved, prior exceptions are closed, and fresh explicit bounded owner acceptance is required.
+Human acceptance of the original distributor incident remains UNKNOWN. No user, grant, entitlement,
+provider, price or production business write is part of this release verification.
+
 For MCP runtime source `6302037f940ed960aa14c2d0bc366a58b1cff4d5`, the owner
 requested publication for production testing. Exact-source technical preparation
 passed at **2026-10-28T02:49:59.333676+00:00**, as recorded in the
