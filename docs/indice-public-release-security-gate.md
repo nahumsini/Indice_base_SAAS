@@ -49,6 +49,21 @@ branch without review.
 
 ## 3. Evidence Status
 
+For MCP runtime source `02881da5b576c20fb6924fc19ef8d612ef42ee26`, the owner
+answered “Autorizar excepción puntual y publicación” under the
+[compact-catalog publication decision](decisions/2026-10-28-mcp-compaction-publication.md).
+Recorded authority starts at **2026-10-28T01:12:00+00:00** and expires no later than
+**2026-10-28T02:12:00+00:00**, closing earlier with one MCP-only production
+activation, five-minute technical observation and at most thirty minutes of
+actual ChatGPT import/read review. App Test remains unchanged. The historical
+Stripe TEST-key finding remains HIGH and unresolved. Only that bounded deferral
+and the timing of real-client acceptance are replaced; all other gates apply.
+Exact immutable MCP image:
+`sha256:32e0f0377438f3630009531ee82a1866ed565d78cd21b288ae5b50c5c9c210e1`.
+Prior real-client failures remain FAIL and the new client result remains UNKNOWN
+until verified. This does not authorize fresh OAuth consent, business mutations,
+another source, another activation or changes to backend/web/storage/App Test.
+
 For OAuth/Marketing application source `5e6a227ecf218b8698b750c9dfd36d85ac2b354f`
 only, the owner separately authorized a production-only activation while keeping
 the historical Stripe TEST-key revocation pending, under the

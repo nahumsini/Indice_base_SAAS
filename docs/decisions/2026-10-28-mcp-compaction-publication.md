@@ -2,8 +2,17 @@
 
 Date: 2026-10-28 (UTC).
 
-Status: PUBLICATION REQUESTED; TECHNICAL PREPARATION PASS;
-FRESH EXCEPTION DECISION PENDING; NOT ACTIVATED.
+Status: PUBLICATION AUTHORIZED; TECHNICAL PREPARATION PASS; NOT YET ACTIVATED.
+
+The owner answered **“Autorizar excepción puntual y publicación”** to the exact
+`02881da5` production-only MCP proposal. Authority was recorded at
+**2026-10-28T01:12:00+00:00**, expiring no later than
+**2026-10-28T02:12:00+00:00**, and closes earlier with the single attempt and
+bounded review. It explicitly accepts the still-pending historical Stripe TEST-key
+revocation and replaces only the timing of real-client acceptance: technical smoke
+first, then actual ChatGPT import and one read in production. App Test keeps its
+current version. This is fresh authority, not reuse of the closed `12593ec9` window.
+No new OAuth consent or business mutation is authorized.
 
 The owner requested “despliegalo” for runtime source
 `02881da5b576c20fb6924fc19ef8d612ef42ee26`. The
