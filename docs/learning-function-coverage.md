@@ -38,7 +38,7 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | scheduling.configuration | 3 | scheduling/configuration | 8 | Understanding only until an owner completion is integrated |
 | config_center.business-structure | 1 | home-panel/business-structure | 2 | Understanding only until an owner completion is integrated |
 | config_center.profile | 1 | home-panel/profile | 2 | Understanding only until an owner completion is integrated |
-| config_center.users | 1 | home-panel/users | 2 | Understanding only until an owner completion is integrated |
+| config_center.users | 1 | home-panel/users | 3 | Understanding only until an owner completion is integrated |
 | config_center.business-profile | 1 | home-panel/business-profile | 2 | Understanding only until an owner completion is integrated |
 | config_center.consulting | 1 | home-panel/consulting | 2 | Understanding only until an owner completion is integrated |
 | config_center.integrations | 1 | home-panel/integrations | 2 | Understanding only until an owner completion is integrated |

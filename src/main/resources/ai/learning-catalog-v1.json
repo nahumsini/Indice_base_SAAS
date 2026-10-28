@@ -1,6 +1,6 @@
 {
   "version": "2026-10-23.v1",
-  "sourceDigest": "668ba1fc4efb6b1f5b8fbebdbafa0ded2b147d8cb787e4328447d8c8d28a4a10",
+  "sourceDigest": "4c35c2bc702ced8126f788fb9eb6606eeb2e46614211ce76ce3f9328dfc6f25c",
   "modules": [
     {
       "module": "ideas_board",
@@ -1314,10 +1314,10 @@
           "tab": "users",
           "label": "Accesos y conexión del agente",
           "title": "Accesos y conexión del agente",
-          "purpose": "Revisa el rol, alcance por unidad y negocio, módulos y pestañas que necesita cada persona.",
-          "effect": "Una guía no concede permisos. Las lecturas y acciones del agente se verifican en cada solicitud; las acciones operativas requieren vista previa y confirmación. Revoca conexiones que ya no uses.",
+          "purpose": "Comprueba la empresa activa y tu rol en ella. Al invitar o editar usuarios, revisa su rol, alcance por unidad y negocio, módulos y pestañas requeridas.",
+          "effect": "Selecciona al menos un módulo permitido o conserva una asignación previa válida. Revisa las pestañas antes de guardar; si falla, sigue el motivo indicado sin perder tus cambios. Conecta agentes desde Conexiones de IA con los alcances necesarios y revoca los que no uses. Esta guía no concede permisos: cada solicitud se verifica y las acciones operativas requieren vista previa y confirmación.",
           "chapterId": "config_center.users",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": false,
           "evidenceTools": [],
@@ -1325,17 +1325,17 @@
             {
               "id": "prepare",
               "title": "Antes de empezar",
-              "description": "Revisa el rol, alcance por unidad y negocio, módulos y pestañas que necesita cada persona."
+              "description": "Comprueba la empresa activa y tu rol en ella. Al invitar o editar usuarios, revisa su rol, alcance por unidad y negocio, módulos y pestañas requeridas."
             },
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Invita usuarios y configura sus permisos. Para conectar un agente, usa la sección de conexiones de IA disponible en tu cuenta y autoriza solo los alcances necesarios."
+              "description": "Distingue si cada módulo está habilitado para la empresa, si puedes asignarlo y si ya está asignado. Los módulos previos bloqueados se conservan; conservarlos no concede acceso efectivo si la empresa no los tiene habilitados. Si falta información del catálogo, reintenta su carga."
             },
             {
               "id": "verify",
               "title": "Comprueba el resultado",
-              "description": "Una guía no concede permisos. Las lecturas y acciones del agente se verifican en cada solicitud; las acciones operativas requieren vista previa y confirmación. Revoca conexiones que ya no uses."
+              "description": "Selecciona al menos un módulo permitido o conserva una asignación previa válida. Revisa las pestañas antes de guardar; si falla, sigue el motivo indicado sin perder tus cambios. Conecta agentes desde Conexiones de IA con los alcances necesarios y revoca los que no uses. Esta guía no concede permisos: cada solicitud se verifica y las acciones operativas requieren vista previa y confirmación."
             }
           ]
         },
@@ -4229,10 +4229,10 @@
           "tab": "users",
           "label": "Access and agent connection",
           "title": "Access and agent connection",
-          "purpose": "Review each person’s role, unit and business scope, modules and required tabs.",
-          "effect": "A guide grants no permissions. Agent reads and actions are checked on every request; operational actions require preview and confirmation. Revoke unused connections.",
+          "purpose": "Check the active company and your role in it. When inviting or editing users, review their role, unit and business scope, modules and required tabs.",
+          "effect": "Select at least one permitted module or retain a valid existing assignment. Review tabs before saving; if it fails, follow the stated reason without losing your changes. Connect agents through AI connections with the necessary scopes and revoke unused connections. This guide grants no permissions: each request is checked and operational actions require preview and confirmation.",
           "chapterId": "config_center.users",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": false,
           "evidenceTools": [],
@@ -4240,17 +4240,17 @@
             {
               "id": "prepare",
               "title": "Before starting",
-              "description": "Review each person’s role, unit and business scope, modules and required tabs."
+              "description": "Check the active company and your role in it. When inviting or editing users, review their role, unit and business scope, modules and required tabs."
             },
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Invite users and configure permissions. To connect an agent, use the AI connections section available to your account and grant only the necessary scopes."
+              "description": "Distinguish whether each module is enabled for the company, whether you can assign it and whether it is already assigned. Locked existing modules are retained; retaining them does not grant effective access when the company has not enabled them. If catalog information is missing, retry loading it."
             },
             {
               "id": "verify",
               "title": "Verify the result",
-              "description": "A guide grants no permissions. Agent reads and actions are checked on every request; operational actions require preview and confirmation. Revoke unused connections."
+              "description": "Select at least one permitted module or retain a valid existing assignment. Review tabs before saving; if it fails, follow the stated reason without losing your changes. Connect agents through AI connections with the necessary scopes and revoke unused connections. This guide grants no permissions: each request is checked and operational actions require preview and confirmation."
             }
           ]
         },

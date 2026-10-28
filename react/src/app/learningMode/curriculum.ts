@@ -36,6 +36,7 @@ function chapter(module: string, tab: string, label: LearningText, steps: readon
     : module === 'crm' && tab === 'mailing' ? 5
     : module === 'human_resources' && tab === 'collaborators' ? 4
     : module === 'human_resources' && tab === 'payroll' ? 3
+    : module === 'config_center' && tab === 'users' ? 3
     : ['human_resources.collaborators', 'crm.mailing', 'control_minutas.session', 'control_minutas.agreements', 'control_minutas.indicators', 'scheduling.clients'].includes(`${module}.${tab}`) ? 3
     : ["expenses", "petty_cash"].includes(module)
     || module === 'ideas_board'
@@ -217,9 +218,9 @@ export const learningChapters: readonly LearningChapter[] = [
     ['Comprueba la conversación y el envío. En móvil vuelve a la bandeja para cambiar de conversación; la moneda preferida no cambia la moneda original de una operación.', 'Check the conversation and delivery. On mobile, return to the inbox to switch conversations; preferred currency does not change an operation’s original currency.'],
   ]),
   chapter('config_center', 'users', ['Accesos y conexión del agente', 'Access and agent connection'], [
-    ['Revisa el rol, alcance por unidad y negocio, módulos y pestañas que necesita cada persona.', 'Review each person’s role, unit and business scope, modules and required tabs.'],
-    ['Invita usuarios y configura sus permisos. Para conectar un agente, usa la sección de conexiones de IA disponible en tu cuenta y autoriza solo los alcances necesarios.', 'Invite users and configure permissions. To connect an agent, use the AI connections section available to your account and grant only the necessary scopes.'],
-    ['Una guía no concede permisos. Las lecturas y acciones del agente se verifican en cada solicitud; las acciones operativas requieren vista previa y confirmación. Revoca conexiones que ya no uses.', 'A guide grants no permissions. Agent reads and actions are checked on every request; operational actions require preview and confirmation. Revoke unused connections.'],
+    ['Comprueba la empresa activa y tu rol en ella. Al invitar o editar usuarios, revisa su rol, alcance por unidad y negocio, módulos y pestañas requeridas.', 'Check the active company and your role in it. When inviting or editing users, review their role, unit and business scope, modules and required tabs.'],
+    ['Distingue si cada módulo está habilitado para la empresa, si puedes asignarlo y si ya está asignado. Los módulos previos bloqueados se conservan; conservarlos no concede acceso efectivo si la empresa no los tiene habilitados. Si falta información del catálogo, reintenta su carga.', 'Distinguish whether each module is enabled for the company, whether you can assign it and whether it is already assigned. Locked existing modules are retained; retaining them does not grant effective access when the company has not enabled them. If catalog information is missing, retry loading it.'],
+    ['Selecciona al menos un módulo permitido o conserva una asignación previa válida. Revisa las pestañas antes de guardar; si falla, sigue el motivo indicado sin perder tus cambios. Conecta agentes desde Conexiones de IA con los alcances necesarios y revoca los que no uses. Esta guía no concede permisos: cada solicitud se verifica y las acciones operativas requieren vista previa y confirmación.', 'Select at least one permitted module or retain a valid existing assignment. Review tabs before saving; if it fails, follow the stated reason without losing your changes. Connect agents through AI connections with the necessary scopes and revoke unused connections. This guide grants no permissions: each request is checked and operational actions require preview and confirmation.'],
   ]),
   chapter('config_center', 'business-profile', ['Diagnóstico del negocio', 'Business diagnosis'], [
     ['Identifica el negocio y los pilares del diagnóstico; responde con información de la operación actual.', 'Identify the business and diagnosis pillars; answer using current operational information.'],
