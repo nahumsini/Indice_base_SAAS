@@ -52,8 +52,8 @@ branch without review.
 For MCP runtime source `02881da5b576c20fb6924fc19ef8d612ef42ee26`, the owner
 answered “Autorizar excepción puntual y publicación” under the
 [compact-catalog publication decision](decisions/2026-10-28-mcp-compaction-publication.md).
-Recorded authority starts at **2026-10-28T01:12:00+00:00** and expires no later than
-**2026-10-28T02:12:00+00:00**, closing earlier with one MCP-only production
+Recorded authority starts at **2026-10-28T01:11:15+00:00** and expires no later than
+**2026-10-28T02:11:15+00:00**, closing earlier with one MCP-only production
 activation, five-minute technical observation and at most thirty minutes of
 actual ChatGPT import/read review. App Test remains unchanged. The historical
 Stripe TEST-key finding remains HIGH and unresolved. Only that bounded deferral

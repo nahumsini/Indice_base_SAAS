@@ -6,8 +6,8 @@ Status: PUBLICATION AUTHORIZED; TECHNICAL PREPARATION PASS; NOT YET ACTIVATED.
 
 The owner answered **“Autorizar excepción puntual y publicación”** to the exact
 `02881da5` production-only MCP proposal. Authority was recorded at
-**2026-10-28T01:12:00+00:00**, expiring no later than
-**2026-10-28T02:12:00+00:00**, and closes earlier with the single attempt and
+**2026-10-28T01:11:15+00:00**, expiring no later than
+**2026-10-28T02:11:15+00:00**, and closes earlier with the single attempt and
 bounded review. It explicitly accepts the still-pending historical Stripe TEST-key
 revocation and replaces only the timing of real-client acceptance: technical smoke
 first, then actual ChatGPT import and one read in production. App Test keeps its
