@@ -10,6 +10,10 @@ export interface TabPermissionModuleOption {
   accessModel?: 'module' | 'tabs';
   assignable?: boolean;
   entitled?: boolean;
+  companyEnabled?: boolean;
+  actorAssignable?: boolean;
+  assignmentEnabled?: boolean;
+  active?: boolean;
   description?: string;
 }
 
@@ -26,6 +30,10 @@ export function buildTabPermissionModuleOptions(
     accessModel: module.accessModel,
     assignable: module.assignable,
     entitled: module.entitled,
+    companyEnabled: module.companyEnabled,
+    actorAssignable: module.actorAssignable,
+    assignmentEnabled: module.assignmentEnabled,
+    active: module.active,
     description: module.description,
   }));
 }

@@ -53,7 +53,7 @@
     "test:invitation-entry-browser": "node tests/invitation-entry-browser.mjs",
     "test:password-recovery-browser": "node tests/password-recovery-browser.mjs",
     "test:learning-mode": "node --experimental-strip-types --test tests/learning-mode-first-entry-regression.test.mjs tests/learning-mode-settings-modal-regression.test.mjs tests/human-resources-learning-mode-regression.test.mjs tests/module-learning-mode-standard-regression.test.mjs tests/learning-mode-locale-regression.test.mjs tests/learning-progress-runtime.test.mjs",
-    "test:users": "node --test tests/users-access-regression.test.mjs",
+    "test:users": "node --test tests/users-access-regression.test.mjs tests/users-module-access.test.mjs",
     "test:users-permissions-browser": "node tests/users-permissions-browser.mjs",
     "test:kpis-ui": "node --test tests/kpis-frontend-standard-regression.test.mjs",
     "test:inventory-ui": "node --test tests/inventory-frontend-standard-regression.test.mjs",

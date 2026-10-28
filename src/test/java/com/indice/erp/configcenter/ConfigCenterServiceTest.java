@@ -629,10 +629,19 @@ class ConfigCenterServiceTest {
         )).thenReturn(List.of(3L));
         when(jdbcTemplate.query(
             contains("FROM modules module_row"),
-            org.mockito.ArgumentMatchers.<RowMapper<String>>any(),
+            org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
             eq(1L),
             eq("config_center")
-        )).thenReturn(List.of("config_center"));
+        )).thenAnswer(invocation -> {
+            var rowMapper = invocation.<RowMapper<Object>>getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getString("slug")).thenReturn("config_center");
+            when(rs.getString("lifecycle_status")).thenReturn("released");
+            when(rs.getBoolean("active")).thenReturn(true);
+            when(rs.getBoolean("entitled")).thenReturn(true);
+            when(rs.getBoolean("assignment_enabled")).thenReturn(true);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
         when(jdbcTemplate.query(
             contains("SELECT uc.id AS user_company_id"),
             org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),

@@ -47,9 +47,9 @@ public final class ConfigCenterUserMutationGuard {
         for (var permissionKey : tabPermissionKeys == null ? List.<String>of() : tabPermissionKeys) {
             if (!ConfigCenterTabPermissionCatalog.isRoleCompatible(permissionKey, targetRole)) {
                 if (ConfigCenterTabPermissionCatalog.isProtectedScope(permissionKey)) {
-                    throw new IllegalArgumentException("Protected tab permissions can only be assigned to Super Admin.");
+                    throw UserAccessInput.error("user_tab_permission_role", "Protected tab permissions can only be assigned to Super Admin.");
                 }
-                throw new IllegalArgumentException(
+                throw UserAccessInput.error("user_tab_permission_role",
                     "User role cannot receive administrative Panel Inicial or HR permissions. Choose Admin for management access."
                 );
             }
@@ -64,10 +64,10 @@ public final class ConfigCenterUserMutationGuard {
             throw new IllegalArgumentException("Organizational scope is required.");
         }
         if (!payload.containsKey("module_slugs") || moduleSlugs == null || moduleSlugs.isEmpty()) {
-            throw new IllegalArgumentException("At least one module permission is required.");
+            throw UserAccessInput.error("user_modules_required", "At least one module permission is required.");
         }
         if (!hasTabPermissionPayload) {
-            throw new IllegalArgumentException("Tab permissions are required.");
+            throw UserAccessInput.error("user_tab_permissions_required", "Tab permissions are required.");
         }
     }
 
@@ -92,10 +92,10 @@ public final class ConfigCenterUserMutationGuard {
             throw new IllegalArgumentException("Admin can assign only Admin or User access.");
         }
         if (!actor.moduleSlugs().containsAll(moduleSlugs)) {
-            throw new IllegalArgumentException("Admin cannot assign modules outside their own access.");
+            throw UserAccessInput.error("user_module_not_assignable", "Admin cannot assign modules outside their own access.");
         }
         if (!actor.tabPermissionKeys().containsAll(tabPermissionKeys)) {
-            throw new IllegalArgumentException("Admin cannot assign tab permissions outside their own access.");
+            throw UserAccessInput.error("user_tab_permission_not_assignable", "Admin cannot assign tab permissions outside their own access.");
         }
         if (!withinScope(actor.scope(), scope)) {
             throw new IllegalArgumentException("Admin cannot assign unit or business outside their own scope.");

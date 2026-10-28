@@ -1,14 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Check, ChevronDown, Info, LockKeyhole, Search, ShieldCheck } from 'lucide-react';
 import type { ConfigCenterCatalogTab } from '../../../api/configCenter';
 import type { TabPermissionModuleOption } from './usersTabPermissionAssignments';
 import type { UsersTranslations } from './translations';
+import { moduleAssignmentState } from './usersModuleAccess';
+import { getUsersModuleAccessCopy } from './usersModuleAccessCopy';
 
 interface UsersTabPermissionPickerProps {
   catalogTabs: ConfigCenterCatalogTab[];
   languageCode: string;
   modules: TabPermissionModuleOption[];
   selectedModuleIds: string[];
+  existingModuleIds?: string[];
+  onRetryCatalog?: () => void;
   selectedPermissionKeys: string[];
   selectedRole: 'Super Admin' | 'Admin' | 'User';
   scopeLabel: string;
@@ -25,6 +29,8 @@ export function UsersTabPermissionPicker({
   languageCode,
   modules,
   selectedModuleIds,
+  existingModuleIds = [],
+  onRetryCatalog,
   selectedPermissionKeys,
   selectedRole,
   scopeLabel,
@@ -33,6 +39,8 @@ export function UsersTabPermissionPicker({
   copy,
   moduleSelectionLabel,
 }: UsersTabPermissionPickerProps) {
+  const pickerId = useId();
+  const accessCopy = getUsersModuleAccessCopy(languageCode);
   const [expandedModuleSlugs, setExpandedModuleSlugs] = useState<Set<string>>(() => new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
@@ -137,12 +145,11 @@ export function UsersTabPermissionPicker({
     });
   };
 
-  const availabilityLabel = (module: TabPermissionModuleOption) => {
-    if (!module.entitled) return labels.notIncluded;
-    if (module.lifecycleStatus === 'planned') return labels.comingSoon;
-    if (module.lifecycleStatus === 'development') return labels.development;
-    if (module.lifecycleStatus === 'pilot') return labels.pilot;
-    return labels.available;
+  const restrictionReason = (module: TabPermissionModuleOption) => {
+    if (moduleAssignmentState(module).unknown) return accessCopy.unknownReason;
+    if (module.actorAssignable === false) return accessCopy.actorReason;
+    if (module.entitled === false) return accessCopy.entitlementReason;
+    return accessCopy.lifecycleReason;
   };
 
   const categoryOptions: Array<{ id: CategoryFilter; label: string }> = [
@@ -174,6 +181,12 @@ export function UsersTabPermissionPicker({
         </label>
       </div>
 
+      {modules.some(module => moduleAssignmentState(module).unknown) && onRetryCatalog ? (
+        <div role="status" className="mt-3 rounded-xl border border-amber-200 p-3 text-sm dark:border-amber-800">
+          <p>{accessCopy.unknownReason}</p>
+          <button type="button" onClick={onRetryCatalog} className="mt-2 min-h-11 rounded-lg border px-3 font-medium">{accessCopy.retry}</button>
+        </div>
+      ) : null}
       <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-800 dark:bg-blue-950/30">
         <div className="flex items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm dark:bg-slate-900 dark:text-blue-300">
@@ -219,8 +232,10 @@ export function UsersTabPermissionPicker({
             {copy.noResults}
           </p>
         ) : visibleModules.map(({ module, moduleTabs, visibleTabs }) => {
-          const isSelected = selectedModuleIds.includes(module.id);
-          const canToggle = module.assignable !== false || isSelected;
+          const { editable: canToggle, unknown } = moduleAssignmentState(module);
+          const alreadyAssigned = existingModuleIds.includes(module.id);
+          const isSelected = selectedModuleIds.includes(module.id) || (alreadyAssigned && !canToggle);
+          const reasonId = `${pickerId}-${module.slug}-state`;
           const selectedCount = moduleTabs.filter((tab) => selectedPermissionSet.has(tab.permission_key)).length;
           const compatibleModuleTabs = moduleTabs.filter(isAllowedForRole);
           const hasTabs = moduleTabs.length > 0 && module.accessModel !== 'module';
@@ -239,6 +254,7 @@ export function UsersTabPermissionPicker({
                   disabled={!canToggle}
                   onClick={() => onModuleChange(module.id)}
                   aria-pressed={isSelected}
+                  aria-describedby={reasonId}
                   className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-not-allowed disabled:opacity-65"
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-base shadow-sm dark:bg-slate-900">
@@ -247,11 +263,8 @@ export function UsersTabPermissionPicker({
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{module.name}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] ${module.assignable === false
-                        ? 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                        : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'}`}
-                      >
-                        {availabilityLabel(module)}
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] dark:bg-slate-800">
+                        {alreadyAssigned ? accessCopy.assigned : accessCopy.unassigned}
                       </span>
                     </span>
                     <span className="mt-0.5 block truncate text-xs text-slate-500 dark:text-slate-400">
@@ -262,7 +275,7 @@ export function UsersTabPermissionPicker({
                     ? 'border-blue-600 bg-blue-600 text-white'
                     : 'border-slate-300 bg-white text-transparent dark:border-slate-600 dark:bg-slate-900'}`}
                   >
-                    {module.assignable === false && !isSelected ? <LockKeyhole className="h-3.5 w-3.5 text-slate-500" /> : <Check className="h-4 w-4" />}
+                    {!canToggle && !isSelected ? <LockKeyhole className="h-3.5 w-3.5 text-slate-500" /> : <Check className="h-4 w-4" />}
                   </span>
                 </button>
 
@@ -280,13 +293,20 @@ export function UsersTabPermissionPicker({
                 ) : null}
               </div>
 
+              <div id={reasonId} className="px-3 pb-3 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                <p>{accessCopy.company}: {module.companyEnabled === true ? accessCopy.enabled : module.companyEnabled === false ? accessCopy.disabled : accessCopy.unknown}
+                  {' · '}{accessCopy.actor}: {module.actorAssignable === true ? accessCopy.assignable : module.actorAssignable === false ? accessCopy.restricted : accessCopy.unknown}</p>
+                {!canToggle ? <p>{restrictionReason(module)}</p> : null}
+                {alreadyAssigned && !canToggle ? <p>{!unknown && module.companyEnabled === false ? accessCopy.ineffective : accessCopy.retained}</p> : null}
+                {alreadyAssigned && canToggle && !isSelected ? <p>{accessCopy.removed}</p> : null}
+              </div>
               {isExpanded ? (
                 <div className="border-t border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-slate-900">
                   <div className="mb-2 flex justify-end gap-1 text-xs">
-                    <button type="button" onClick={() => replaceModuleTabs(module.slug, compatibleModuleTabs.map((tab) => tab.permission_key))} className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600 hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300">
+                    <button type="button" disabled={!canToggle} onClick={() => replaceModuleTabs(module.slug, compatibleModuleTabs.map((tab) => tab.permission_key))} className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600 hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300">
                       {copy.all}
                     </button>
-                    <button type="button" onClick={() => replaceModuleTabs(module.slug, [])} className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600 hover:border-red-200 hover:text-red-700 dark:border-slate-700 dark:text-slate-300">
+                    <button type="button" disabled={!canToggle} onClick={() => replaceModuleTabs(module.slug, [])} className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600 hover:border-red-200 hover:text-red-700 dark:border-slate-700 dark:text-slate-300">
                       {copy.none}
                     </button>
                   </div>
@@ -303,7 +323,7 @@ export function UsersTabPermissionPicker({
                           ? 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200'
                           : 'cursor-pointer border-slate-200 bg-white text-slate-700 hover:border-blue-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'}`}
                         >
-                          <input type="checkbox" checked={isTabSelected} disabled={!isRoleAllowed} onChange={() => togglePermission(tab)} className="sr-only" />
+                          <input type="checkbox" checked={isTabSelected} disabled={!canToggle || !isRoleAllowed} onChange={() => togglePermission(tab)} className="sr-only" />
                           <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isTabSelected
                             ? 'border-blue-500 bg-blue-600 text-white'
                             : 'border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900'} ${!isRoleAllowed ? 'mt-0.5' : ''}`}

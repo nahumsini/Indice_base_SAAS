@@ -38,11 +38,12 @@ class ConfigCenterTabPermissionAccessTest {
         var keys = List.of("human_resources.payroll");
 
         var error = assertThrows(
-            IllegalArgumentException.class,
+            UserAccessException.class,
             () -> access.ensureTabPermissionKeysValid(keys, List.of("config_center"))
         );
 
-        assertEquals("Tab permissions must belong to assigned modules: human_resources.payroll", error.getMessage());
+        assertEquals("user_tab_permission_module", error.code());
+        assertEquals("Tab permissions must belong to assigned modules.", error.getMessage());
     }
 
     @Test

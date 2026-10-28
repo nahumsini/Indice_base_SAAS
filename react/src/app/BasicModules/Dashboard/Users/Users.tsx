@@ -50,12 +50,13 @@ import { useAuthorizationRevision } from '../../../hooks/useAuthorizationRevisio
 import { currentProfileActor } from '../../../api/configCenter';
 import { SuccessToast } from '../../../components/SuccessToast';
 import { getUsersFeedbackCopy } from './usersFeedbackCopy';
+import { getUsersModuleAccessCopy } from './usersModuleAccessCopy';
+import { moduleAssignmentState, moduleIdForSlug, modulesWithPreviousAssignments, moduleSelectionError, selectedModuleSlugs } from './usersModuleAccess';
 import { ApiClientError } from '../../../lib/apiClient';
 import { canAccessModuleTab, isTabScopeAssignableToRole } from '../../../access/tabScopeCatalog';
 import {
   backendSlugForRoute,
   mapBackendModuleToCard,
-  routeForBackendSlug,
   type DashboardModuleCategory,
   type DashboardModuleColor,
 } from '../../../config/moduleCatalog';
@@ -111,10 +112,14 @@ interface AvailableModule {
   emoji: string;
   color: DashboardModuleColor;
   category: DashboardModuleCategory;
-  lifecycleStatus: 'planned' | 'development' | 'pilot' | 'released' | 'retired';
+  lifecycleStatus?: 'planned' | 'development' | 'pilot' | 'released' | 'retired';
   accessModel: 'module' | 'tabs';
-  assignable: boolean;
-  entitled: boolean;
+  assignable?: boolean;
+  entitled?: boolean;
+  companyEnabled?: boolean;
+  actorAssignable?: boolean;
+  assignmentEnabled?: boolean;
+  active?: boolean;
   description: string;
 }
 
@@ -174,6 +179,7 @@ function UsersEditor({ actor }: { actor: string | null }) {
   const { currentLanguage, t } = useLanguage();
   const usersCopy = useUsersTranslations();
   const feedback = getUsersFeedbackCopy(currentLanguage.code);
+  const moduleAccessCopy = getUsersModuleAccessCopy(currentLanguage.code);
   const alive = useRef(true);
   const mutationRef = useRef(false);
   const refreshSequence = useRef(0);
@@ -192,7 +198,7 @@ function UsersEditor({ actor }: { actor: string | null }) {
     const errors: Record<string,string> = {
       users_actor_changed: feedback.changed, user_name_required: feedback.name, user_name_too_long: feedback.name,
       user_email_invalid: feedback.email, user_role_invalid: feedback.permission, user_scope_invalid: feedback.scope,
-      user_modules_required: feedback.modules, user_last_administrator: feedback.lastAdmin,
+      ...moduleAccessCopy.errors, user_last_administrator: feedback.lastAdmin,
       SEAT_CAPACITY_EXCEEDED: usersCopy.seats.limitReached,
     };
     if (code && errors[code]) return errors[code];
@@ -203,7 +209,11 @@ function UsersEditor({ actor }: { actor: string | null }) {
     if (/cannot deactivate your own|cannot activate your own/.test(message)) return feedback.self;
     if (/selected business|selected unit|Organizational scope/.test(message)) return feedback.scope;
     if (/Admin cannot|Only Admin|Only Super|Protected users|Protected tab|own role or permissions|administrative Panel/.test(message)) return feedback.permission;
-    if (/module permission|Tab permissions|tab permission|module.*(available|assign|entitled)/i.test(message)) return feedback.modules;
+    // Compatibility with older servers; stable codes take precedence above.
+    if (/at least one module/i.test(message)) return moduleAccessCopy.errors.user_modules_required;
+    if (/tab permission|administrative Panel/i.test(message)) return moduleAccessCopy.errors.user_tab_permission_not_assignable;
+    if (/module.*(available|entitled)/i.test(message)) return moduleAccessCopy.errors.user_module_not_enabled;
+    if (/module.*assign/i.test(message)) return moduleAccessCopy.errors.user_module_not_assignable;
     return fallback;
   };
   const [users, setUsers] = useState<User[]>([]);
@@ -281,17 +291,7 @@ function UsersEditor({ actor }: { actor: string | null }) {
   const currentAccessUser = users.find((user) =>
     user.source === 'user' && user.backendId === currentUserId
   ) ?? null;
-  const assignableModules = useMemo(() => {
-    if (canAssignSuperAdmin) {
-      return availableModules;
-    }
-    if (!isAdminRole(currentUserRole) || !currentAccessUser) {
-      return [];
-    }
-
-    const allowedModuleIds = new Set(currentAccessUser.modules);
-    return availableModules.filter((module) => allowedModuleIds.has(module.id));
-  }, [availableModules, canAssignSuperAdmin, currentAccessUser, currentUserRole]);
+  const assignableModules = useMemo(() => availableModules.filter(module => moduleAssignmentState(module).editable), [availableModules]);
   const assignableTabPermissionKeys = useMemo(() => {
     if (canAssignSuperAdmin) {
       return new Set(catalogTabs.map((tab) => tab.permission_key));
@@ -469,6 +469,8 @@ function UsersEditor({ actor }: { actor: string | null }) {
 
   const selectedUser = users.find((user) => user.id === selectedUserForModules) ?? null;
   const resendUser = users.find((user) => user.id === selectedUserForResend) ?? null;
+  const selectedUserModules = modulesWithPreviousAssignments(tabPermissionModules, selectedUser?.moduleSlugs ?? []);
+  const selectedUserModuleSlugs = selectedModuleSlugs(selectedUserModules, selectedModulesDraft, selectedUser?.moduleSlugs ?? []);
   const selectedUserCatalogTabs = assignableCatalogTabs;
   const inviteCatalogTabs = assignableCatalogTabs;
   const invitationPendingDelete =
@@ -605,6 +607,8 @@ function UsersEditor({ actor }: { actor: string | null }) {
     const mappedModules = response.catalog.modules.map((module) => mapCatalogModule(module,t)).filter((module): module is AvailableModule => module !== null);
     setAvailableModules(mappedModules);
     setUsers(response.users.map((user) => mapBackendUser(user,mappedModules)));
+    // Use the mutation owner’s company-role projection rather than combining separate reads.
+    setCurrentUserRole(response.actor_role ?? response.users.find(user => user.source === 'user' && String(user.id) === actor?.split(':')[1])?.role ?? null);
     setAvailableUnits(response.catalog.units.map(mapCatalogUnit));
     setAvailableBusinesses(response.catalog.businesses.map(mapCatalogBusiness));
     setCatalogTabs(response.catalog.tabs ?? []);
@@ -654,7 +658,7 @@ function UsersEditor({ actor }: { actor: string | null }) {
         if (!active || !isCurrent()) return;
         if (String(currentUser.id) !== actor?.split(':')[1]) throw new Error('users_actor_changed');
         applyUsersResponse(response);
-        setCurrentUserId(currentUser.id); setCurrentUserRole(currentUser.role ?? null);
+        setCurrentUserId(currentUser.id);
         setActiveCompanyName(getCachedAuthSession()?.company.name ?? ''); setSubscription(nextSubscription); setInitialReady(true);
       })
       .catch((error) => { if (active && isCurrent()) setLoadError(formatApiError(error,feedback.load)); })
@@ -693,6 +697,8 @@ function UsersEditor({ actor }: { actor: string | null }) {
   };
 
   const toggleUserModule = (moduleId: string) => {
+    const module = availableModules.find(candidate => candidate.id === moduleId);
+    if (!module || !moduleAssignmentState(module).editable) return;
     const role = selectedRoleDraft;
     const roleCatalogTabs = catalogTabsForRole(role, assignableCatalogTabs);
     setSelectedModulesDraft((prevModules) => {
@@ -702,18 +708,14 @@ function UsersEditor({ actor }: { actor: string | null }) {
 
       setSelectedTabPermissionDraft((currentKeys) =>
         prevModules.includes(moduleId)
-          ? pruneTabPermissionKeysForModules(roleCatalogTabs, assignableTabPermissionModules, currentKeys, nextModules)
-          : mergeDefaultTabPermissions(roleCatalogTabs, assignableTabPermissionModules, currentKeys, nextModules),
+          ? pruneTabPermissionKeysForModules(roleCatalogTabs, selectedUserModules, currentKeys, nextModules)
+          : mergeDefaultTabPermissions(roleCatalogTabs.filter(tab => tab.module_slug === module.slug), assignableTabPermissionModules, currentKeys, nextModules),
       );
       return nextModules;
     });
   };
 
-  const moduleSlugsForIds = (moduleIds: string[]) => (
-    moduleIds
-      .map((route) => backendSlugForRoute(route as any))
-      .filter((slug): slug is string => Boolean(slug))
-  );
+  const moduleSlugsForIds = (moduleIds: string[]) => selectedModuleSlugs(availableModules, moduleIds);
 
   const numberOrNull = (value?: string | number | null) => {
     if (value == null || value === '') {
@@ -730,14 +732,14 @@ function UsersEditor({ actor }: { actor: string | null }) {
     unitValue: string | number | null,
     businessValue: string | number | null,
   ) => {
-    const selectedModules = new Set(moduleIds);
+    const selectedModules = new Set(moduleIds.map(id => availableModules.find(module => module.id === id)?.slug
+      ?? (id.startsWith('module:') ? id.slice(7) : backendSlugForRoute(id as any))));
     const unitId = scopeType === 'corporate_office' ? null : numberOrNull(unitValue);
     const businessId = scopeType === 'business_office' ? numberOrNull(businessValue) : null;
     return kioskIds.filter((id) => {
       const kiosk = availableEmployeeKiosks.find(candidate => candidate.id === id);
       if (!kiosk) return false;
-      const route = routeForBackendSlug(kiosk.module_slug);
-      if (!route || !selectedModules.has(route)) return false;
+      if (!selectedModules.has(kiosk.module_slug)) return false;
       if (scopeType === 'corporate_office') return true;
       if (kiosk.unit_id != null && kiosk.unit_id !== unitId) return false;
       if (businessId != null && kiosk.business_id != null && kiosk.business_id !== businessId) return false;
@@ -768,8 +770,8 @@ function UsersEditor({ actor }: { actor: string | null }) {
     const unitId = overrides.unitId === undefined ? user.unitId : overrides.unitId;
     const businessId = overrides.businessId === undefined ? user.businessId : overrides.businessId;
     const editableSlugs = new Set(assignableModules.map((module) => module.slug));
-    const moduleSlugs = [...new Set([...moduleSlugsForIds(moduleIds), ...user.moduleSlugs.filter((slug) => !editableSlugs.has(slug))])];
-    const editableTabs = new Set(assignableCatalogTabs.map((tab) => tab.permission_key));
+    const moduleSlugs = selectedModuleSlugs(availableModules, moduleIds, user.moduleSlugs);
+    const editableTabs = new Set(assignableCatalogTabs.filter(tab => editableSlugs.has(tab.module_slug)).map((tab) => tab.permission_key));
     const retainedTabs = user.tabPermissionKeys.filter((key) => !editableTabs.has(key) && moduleSlugs.includes(key.split('.')[0]));
     return {
       role: user.backendRole === 'root' && role === user.role ? 'root' : toBackendRole(role),
@@ -821,10 +823,9 @@ function UsersEditor({ actor }: { actor: string | null }) {
 
     if (!trimmedName || [...trimmedName].length > 100) { setInviteValidationMessage(feedback.name); setInviteWizardStep('identity'); return; }
     if (trimmedEmail.length > 120) { setInviteValidationMessage(feedback.email); setInviteWizardStep('identity'); return; }
-    if (!trimmedEmail || !inviteOrganizationIsValid || inviteModuleIds.length === 0) {
-      setInviteValidationMessage(usersCopy.inviteWizard.accessError);
-      return;
-    }
+    if (!inviteOrganizationIsValid) { setInviteValidationMessage(feedback.scope); return; }
+    const moduleError = moduleSelectionError(availableModules, inviteModuleIds);
+    if (moduleError) { setInviteValidationMessage(moduleAccessCopy.errors[moduleError]); return; }
 
     const emailValidation = validateEmail(trimmedEmail);
     if (!emailValidation.ok) {
@@ -1007,8 +1008,7 @@ function UsersEditor({ actor }: { actor: string | null }) {
     setSelectedScopeTypeDraft(user.scopeType);
     setSelectedUnitDraft(user.unitId == null ? '' : String(user.unitId));
     setSelectedBusinessDraft(user.businessId == null ? '' : String(user.businessId));
-    const allowedModuleIds = new Set(assignableModules.map((module) => module.id));
-    setSelectedModulesDraft(user.modules.filter((moduleId) => allowedModuleIds.has(moduleId)));
+    setSelectedModulesDraft(user.moduleSlugs.map(slug => moduleIdForSlug(slug, availableModules)));
     setSelectedTabPermissionDraft(
       pruneTabPermissionKeysForRole(
         user.role,
@@ -1021,7 +1021,9 @@ function UsersEditor({ actor }: { actor: string | null }) {
   const closeAccessEditor = () => { if (!mutationRef.current && !isMutating) { setSelectedUserForModules(null); setLoadError(''); } };
   const handleSaveSelectedModules = async () => {
     if (!selectedUser || !canEditAccessFor(selectedUser) || mutationRef.current || !isCurrent()) return;
-    if (!selectedEditScopeIsValid || !selectedModulesDraft.length) { setLoadError(feedback.scope); return; }
+    if (!selectedEditScopeIsValid) { setLoadError(feedback.scope); return; }
+    const moduleError = moduleSelectionError(selectedUserModules, selectedModulesDraft, selectedUser.moduleSlugs);
+    if (moduleError) { setLoadError(moduleAccessCopy.errors[moduleError]); return; }
     try {
       setLoadError('');
       const tabPermissionKeys = pruneTabPermissionKeysForModules(selectedUserCatalogTabs,assignableTabPermissionModules,selectedTabPermissionDraft,selectedModulesDraft);
@@ -1097,6 +1099,8 @@ function UsersEditor({ actor }: { actor: string | null }) {
   };
 
   const toggleInviteModule = (moduleId: string) => {
+    const module = availableModules.find(candidate => candidate.id === moduleId);
+    if (!module || !moduleAssignmentState(module).editable) return;
     const roleCatalogTabs = catalogTabsForRole(inviteForm.role, assignableCatalogTabs);
     setInviteModuleIds((currentModuleIds) => {
       const nextModuleIds = currentModuleIds.includes(moduleId)
@@ -1106,7 +1110,7 @@ function UsersEditor({ actor }: { actor: string | null }) {
       setInviteTabPermissionKeys((currentKeys) =>
         currentModuleIds.includes(moduleId)
           ? pruneTabPermissionKeysForModules(roleCatalogTabs, assignableTabPermissionModules, currentKeys, nextModuleIds)
-          : mergeDefaultTabPermissions(roleCatalogTabs, assignableTabPermissionModules, currentKeys, nextModuleIds),
+          : mergeDefaultTabPermissions(roleCatalogTabs.filter(tab => tab.module_slug === module.slug), assignableTabPermissionModules, currentKeys, nextModuleIds),
       );
       return nextModuleIds;
     });
@@ -1595,7 +1599,7 @@ function UsersEditor({ actor }: { actor: string | null }) {
           footer={(
             <Button
               onClick={handleSaveSelectedModules}
-              disabled={isMutating || selectedModulesDraft.length === 0 || !selectedEditScopeIsValid}
+              disabled={isMutating || selectedUserModuleSlugs.length === 0 || !selectedEditScopeIsValid}
             >
               {usersCopy.screen.modal.save}
             </Button>
@@ -1611,7 +1615,7 @@ function UsersEditor({ actor }: { actor: string | null }) {
               {usersCopy.screen.modal.cancel}
             </Button>
           )}
-          footerSummary={`${usersCopy.accessEditor.review}: ${formatSelectedModulesCount(selectedModulesDraft.length)} · ${usersCopy.kioskPermissions.assigned(selectedKioskDefinitionDraft.length)}`}
+          footerSummary={`${usersCopy.accessEditor.review}: ${formatSelectedModulesCount(selectedUserModuleSlugs.length)} · ${usersCopy.kioskPermissions.assigned(selectedKioskDefinitionDraft.length)}`}
           icon={<Layers3 className="h-5 w-5" />}
           modalType="operational-workspace"
           onOpenChange={(open) => {
@@ -1622,8 +1626,8 @@ function UsersEditor({ actor }: { actor: string | null }) {
           tone="blue"
         >
               <div className="space-y-6">
-                <IndiceModalValidation messages={loadError ? [loadError] : []} />
-                {selectedUser.moduleSlugs.some((slug) => !assignableModules.some((module) => module.slug === slug)) ? <p className="text-sm text-slate-600 dark:text-slate-300">{feedback.retained}</p> : null}
+                <IndiceModalValidation messages={loadError ? [loadError] : selectedUserModuleSlugs.length === 0 ? [moduleAccessCopy.errors.user_modules_required] : []} />
+                <p className="text-sm text-slate-600 dark:text-slate-300">{moduleAccessCopy.effectiveRole}: {currentUserRole}</p>
                 <fieldset disabled={isMutating} className="min-w-0 space-y-6">
                 <section className="space-y-3">
                   <AccessEditorSectionHeading
@@ -1721,7 +1725,9 @@ function UsersEditor({ actor }: { actor: string | null }) {
 	                <UsersTabPermissionPicker
 		                  catalogTabs={selectedUserCatalogTabs}
 		                  languageCode={currentLanguage.code}
-		                  modules={assignableTabPermissionModules}
+		                  modules={selectedUserModules}
+                      existingModuleIds={selectedUser.moduleSlugs.map(slug => moduleIdForSlug(slug, selectedUserModules))}
+                      onRetryCatalog={retryList}
 	                  copy={usersCopy.tabPermissions}
 	                  moduleSelectionLabel={usersCopy.selectedModules}
 	                  selectedModuleIds={selectedModulesDraft}
@@ -1961,7 +1967,8 @@ function UsersEditor({ actor }: { actor: string | null }) {
                     <UsersTabPermissionPicker
                       catalogTabs={inviteCatalogTabs}
                       languageCode={currentLanguage.code}
-                      modules={assignableTabPermissionModules}
+                      modules={tabPermissionModules}
+                      onRetryCatalog={retryList}
                       copy={usersCopy.tabPermissions}
                       moduleSelectionLabel={usersCopy.selectedModules}
                       selectedModuleIds={inviteModuleIds}
@@ -2209,21 +2216,21 @@ function mapCatalogModule(module: ConfigCenterCatalogModule, t: any): AvailableM
     url: module.route_key,
   }, t);
 
-  if (!mapped) {
-    return null;
-  }
-
   return {
-    id: mapped.route,
+    id: mapped?.route ?? `module:${module.slug}`,
     slug: module.slug,
-    name: mapped.title,
-    emoji: mapped.emoji,
-    color: mapped.color,
-    category: module.category ?? mapped.category,
-    lifecycleStatus: module.lifecycle_status ?? 'released',
+    name: mapped?.title ?? module.name,
+    emoji: mapped?.emoji ?? '📦',
+    color: mapped?.color ?? 'blue',
+    category: module.category ?? mapped?.category ?? 'complementary',
+    lifecycleStatus: module.lifecycle_status,
     accessModel: module.access_model ?? 'module',
-    assignable: module.assignable ?? true,
-    entitled: module.entitled ?? true,
+    assignable: module.assignable,
+    entitled: module.entitled,
+    companyEnabled: module.company_enabled,
+    actorAssignable: module.actor_assignable,
+    assignmentEnabled: module.assignment_enabled,
+    active: module.active,
     description: module.description ?? '',
   };
 }
@@ -2247,7 +2254,6 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
   const role = normalizeUserRole(user.role);
   const status = normalizeUserStatus(user.status);
   const fullName = `${user.nombres ?? ''} ${user.apellidos ?? ''}`.trim() || user.email;
-  const validModuleIds = new Set(availableModules.map((module) => module.id));
   const backendId = user.source === 'invitation'
     ? (user.invitation_id ?? user.id)
     : user.id;
@@ -2283,11 +2289,7 @@ function mapBackendUser(user: ConfigCenterUser, availableModules: AvailableModul
     },
     tabPermissionKeys: user.tab_permission_keys ?? [],
     kioskDefinitionIds: user.kiosk_definition_ids ?? [],
-    modules: user.module_slugs
-      .flatMap((slug) => {
-        const route = routeForBackendSlug(slug);
-        return route && validModuleIds.has(route) ? [route] : [];
-      }),
+    modules: user.module_slugs.map(slug => moduleIdForSlug(slug, availableModules)),
   };
 }
 

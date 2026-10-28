@@ -30,6 +30,7 @@ public final class ConfigCenterModuleAccessRegistry {
                        COALESCE(module_row.module_category, 'complementary') AS module_category,
                        COALESCE(module_row.lifecycle_status, 'released') AS lifecycle_status,
                        COALESCE(module_row.access_model, 'module') AS access_model,
+                       COALESCE(module_row.is_active, 1) AS active,
                        COALESCE(module_row.assignment_enabled, 1) AS assignment_enabled,
                        COALESCE(module_row.route_key, '') AS route_key,
                        CASE WHEN entitlement.id IS NULL THEN 0 ELSE 1 END AS entitled
@@ -38,7 +39,6 @@ public final class ConfigCenterModuleAccessRegistry {
                   ON entitlement.company_id = ?
                  AND entitlement.module_slug = module_row.slug
                  AND LOWER(COALESCE(entitlement.status, 'active')) = 'active'
-                WHERE COALESCE(module_row.is_active, 1) = 1
                 ORDER BY module_row.sort_order ASC, module_row.name ASC
                 """,
             (rs, rowNum) -> {
@@ -46,9 +46,11 @@ public final class ConfigCenterModuleAccessRegistry {
                 var lifecycle = rs.getString("lifecycle_status");
                 var entitled = rs.getBoolean("entitled");
                 var assignmentEnabled = rs.getBoolean("assignment_enabled");
-                var assignable = entitled
+                var active = rs.getBoolean("active");
+                var companyEnabled = active && entitled
                     && assignmentEnabled
                     && ("pilot".equalsIgnoreCase(lifecycle) || "released".equalsIgnoreCase(lifecycle));
+                var actorAssignable = protectedActor || actorModules.contains(slug);
                 var module = new LinkedHashMap<String, Object>();
                 module.put("slug", slug);
                 module.put("name", rs.getString("name"));
@@ -57,9 +59,12 @@ public final class ConfigCenterModuleAccessRegistry {
                 module.put("lifecycle_status", lifecycle);
                 module.put("access_model", rs.getString("access_model"));
                 module.put("assignment_enabled", assignmentEnabled);
+                module.put("active", active);
                 module.put("route_key", rs.getString("route_key"));
                 module.put("entitled", entitled);
-                module.put("assignable", assignable);
+                module.put("company_enabled", companyEnabled);
+                module.put("actor_assignable", actorAssignable);
+                module.put("assignable", companyEnabled && actorAssignable);
                 return module;
             },
             companyId
@@ -77,36 +82,42 @@ public final class ConfigCenterModuleAccessRegistry {
             return;
         }
 
-        var requested = new ArrayList<>(new LinkedHashSet<>(moduleSlugs));
         var grandfathered = Set.copyOf(grandfatheredSlugs == null ? List.of() : grandfatheredSlugs);
+        var requested = new ArrayList<>(new LinkedHashSet<>(moduleSlugs));
+        requested.removeAll(grandfathered);
+        if (requested.isEmpty()) return;
         var placeholders = String.join(",", Collections.nCopies(requested.size(), "?"));
         var params = new ArrayList<Object>();
         params.add(companyId);
         params.addAll(requested);
-        var assignable = new LinkedHashSet<>(jdbcTemplate.query(
+        var modules = jdbcTemplate.query(
             """
-                SELECT module_row.slug
+                SELECT module_row.slug,
+                       COALESCE(module_row.is_active, 1) AS active,
+                       COALESCE(module_row.assignment_enabled, 1) AS assignment_enabled,
+                       COALESCE(module_row.lifecycle_status, 'released') AS lifecycle_status,
+                       CASE WHEN entitlement.id IS NULL THEN 0 ELSE 1 END AS entitled
                 FROM modules module_row
-                INNER JOIN company_module_entitlements entitlement
+                LEFT JOIN company_module_entitlements entitlement
                   ON entitlement.company_id = ?
                  AND entitlement.module_slug = module_row.slug
                  AND LOWER(COALESCE(entitlement.status, 'active')) = 'active'
                 WHERE module_row.slug IN (%s)
-                  AND COALESCE(module_row.is_active, 1) = 1
-                  AND COALESCE(module_row.assignment_enabled, 1) = 1
-                  AND LOWER(COALESCE(module_row.lifecycle_status, 'released')) IN ('pilot', 'released')
                 """.formatted(placeholders),
-            (rs, rowNum) -> rs.getString("slug"),
+            (rs, rowNum) -> new ModuleEligibility(rs.getString("slug"), rs.getBoolean("active"),
+                rs.getBoolean("entitled"), rs.getBoolean("assignment_enabled"), rs.getString("lifecycle_status")),
             params.toArray()
-        ));
-
-        var unavailable = new LinkedHashSet<>(requested);
-        unavailable.removeAll(assignable);
-        unavailable.removeAll(grandfathered);
-        if (!unavailable.isEmpty()) {
-            throw new IllegalArgumentException(
-                "Module access is not available for this company: " + String.join(", ", unavailable)
-            );
+        );
+        for (var slug : requested) {
+            var module = modules.stream().filter(row -> row.slug().equals(slug)).findFirst();
+            if (module.isEmpty()) throw UserAccessInput.error("user_module_unknown", "Reload the module catalogue before assigning access.");
+            var row = module.get();
+            if (!row.active() || !row.entitled())
+                throw UserAccessInput.error("user_module_not_enabled", "A requested module is not enabled for this company.");
+            if (!row.assignmentEnabled() || !("pilot".equalsIgnoreCase(row.lifecycle()) || "released".equalsIgnoreCase(row.lifecycle())))
+                throw UserAccessInput.error("user_module_not_assignable", "A requested module is not open for assignment.");
         }
     }
+
+    private record ModuleEligibility(String slug, boolean active, boolean entitled, boolean assignmentEnabled, String lifecycle) {}
 }

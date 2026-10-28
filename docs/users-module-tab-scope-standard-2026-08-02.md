@@ -141,3 +141,37 @@ these tabs for existing memberships/invitations, replacing default-enable only f
 channel as explicitly requested. Channel grants are an additional restriction; Contact access or a
 role name never grants WhatsApp history. Grants attach to `user_companies`, not global users, and
 capture the current work-profile scope. See [Sales Conversations](sales-conversations-contract-v1.md).
+
+## Company-aware module editor correction (2026-10-28)
+
+The Users catalogue is scoped to the authenticated company and the actor's existing visibility
+ceiling. Protected actors can inspect the registry, including inactive rows; an ordinary Admin
+still sees only modules in their own access. Listing a row never grants access. The additive
+`company_enabled` field combines active module, active entitlement, assignment switch and permitted
+lifecycle. `actor_assignable` independently reports the actor's delegation ceiling; legacy
+`assignable` is their conjunction. Existing fields remain compatible. `actor_role` is the effective
+active-company membership role used by the Users owner (Root normalizes to Super Admin here), not
+the global profile role. The existing explicitly authorized managed-company workspace fallback
+remains unchanged: session resolution validates delegated company authority upstream; this editor
+neither selects another company nor creates memberships or delegated authority.
+
+Both invitation and edit show the complete actor-authorized catalogue. Each module exposes company
+availability, administrator assignability and previous target assignment in text. Incomplete
+metadata and previous assignments absent from the catalogue appear as unknown with a reload action;
+they are not described as uncontracted. A presentation route is not required to display a registry
+row. Unknown or ineligible modules cannot receive new grants or editable tabs.
+
+Existing non-editable module assignments stay checked and are included in the complete edit
+payload. Their existing tabs are retained when compatible with the requested role. These grants
+count toward the existing minimum-one-module validation, even if no new editable module is
+selected. Retained grants do not bypass company availability, tab permissions or the actor's
+ceiling. Only editable module selections can be removed from this editor; explicit role changes
+retain the existing role/tab compatibility checks. New grants remain subject to fresh server
+validation and the existing transaction/audit boundary. No schema or production data changes.
+
+Stable validation codes distinguish `user_modules_required`, `user_module_unknown`,
+`user_module_not_enabled`, `user_module_not_assignable`, `user_tab_permissions_required`,
+`user_tab_permission_unknown`, `user_tab_permission_module`, `user_tab_permission_role`,
+`user_tab_permission_not_assignable`. Responses contain safe, actionable
+messages without raw SQL or lists of unauthorized module/tab identifiers. Errors retain the draft;
+reloading the catalogue retains the role, organization and pending selections.

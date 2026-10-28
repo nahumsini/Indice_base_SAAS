@@ -263,6 +263,7 @@ public abstract class ConfigCenterUserAccessUseCases extends ConfigCenterProfile
         result.put("users", users);
         result.put("catalog", catalog);
         result.put("company_id", companyId);
+        result.put("actor_role", actor.role());
         result.put("capabilities", Map.of(
             "can_manage_users", ADMIN_ROLES.contains(actor.role()),
             "can_invite", ADMIN_ROLES.contains(actor.role()),

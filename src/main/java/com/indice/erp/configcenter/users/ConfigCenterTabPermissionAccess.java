@@ -55,10 +55,10 @@ public class ConfigCenterTabPermissionAccess {
             }
         }
         if (!unknown.isEmpty()) {
-            throw new IllegalArgumentException("Unknown tab permission: " + String.join(", ", unknown));
+            throw UserAccessInput.error("user_tab_permission_unknown", "Reload the tab permission catalogue before saving.");
         }
         if (!outsideModuleAccess.isEmpty()) {
-            throw new IllegalArgumentException("Tab permissions must belong to assigned modules: " + String.join(", ", outsideModuleAccess));
+            throw UserAccessInput.error("user_tab_permission_module", "Tab permissions must belong to assigned modules.");
         }
     }
 

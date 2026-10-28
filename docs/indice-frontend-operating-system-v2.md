@@ -4813,6 +4813,12 @@ length. Submission locks fields, blocks duplicates and ignores late results afte
 No new navigation, modal engine, entitlement or invitation-delivery channel is introduced.
 
 
+The 2026-10-28 correction renders every actor-authorized catalogue row with independent textual
+company availability, actor assignability and prior-target assignment. Unknown data exposes retry;
+non-editable prior grants stay selected and count toward the save minimum. New grants still require
+server eligibility. Both invitation/edit retain the shared picker and modal; the effective role
+comes from the Users company membership projection. See the [Users access contract](users-module-tab-scope-standard-2026-08-02.md#company-aware-module-editor-correction-2026-10-28).
+
 ### Invitation acceptance to authenticated workspace (2026-10-19)
 
 The existing `/invite/:token` page distinguishes an unavailable link from a temporary loading

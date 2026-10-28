@@ -160,6 +160,9 @@ export interface ConfigCenterCatalogModule {
   lifecycle_status?: 'planned' | 'development' | 'pilot' | 'released' | 'retired';
   access_model?: 'module' | 'tabs';
   assignment_enabled?: boolean;
+  active?: boolean;
+  company_enabled?: boolean;
+  actor_assignable?: boolean;
   route_key?: string;
   entitled?: boolean;
   assignable?: boolean;
@@ -313,6 +316,7 @@ interface CurrentUserResponse {
 
 interface UsersResponse {
   ok: boolean;
+  actor_role?: string;
   users: ConfigCenterUser[];
   company_id?: number;
   capabilities?: {

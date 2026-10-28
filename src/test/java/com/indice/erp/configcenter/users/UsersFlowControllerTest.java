@@ -37,4 +37,15 @@ class UsersFlowControllerTest {
   mvc.perform(put("/api/v1/config-center/users/2").header("X-Users-Actor","7:1").contentType("application/json").content("{\"company_id\":999,\"user_id\":999}"))
    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("user_last_administrator"));
  }
+ @org.junit.jupiter.params.ParameterizedTest
+ @org.junit.jupiter.params.provider.ValueSource(strings={"user_modules_required","user_module_unknown","user_module_not_enabled","user_module_not_assignable","user_tab_permissions_required","user_tab_permission_unknown","user_tab_permission_module","user_tab_permission_role","user_tab_permission_not_assignable"})
+ void createAndEditReturnDistinctStableAccessCodes(String code) throws Exception {
+  when(users.updateUser(eq(7L),eq(1L),eq("admin"),eq(2L),anyMap())).thenThrow(new UserAccessException(code,"Review the selected access."));
+  when(invitations.invite(eq(7L),eq(1L),eq("admin"),anyMap())).thenThrow(new UserAccessException(code,"Review the selected access."));
+  mvc.perform(put("/api/v1/config-center/users/2").contentType("application/json").content("{}"))
+   .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value(code));
+  mvc.perform(post("/api/v1/config-center/users/invite").contentType("application/json").content("{}"))
+   .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value(code));
+ }
+
 }

@@ -71,4 +71,100 @@ class UsersFlowPersistenceTest {
  }
  boolean inviteOnce(AuthSessionUser actor,String email,CountDownLatch gate){try{gate.await();invitations.invite(actor.companyId(),actor.userId(),actor.role(),invite(email));return true;}catch(Exception error){return false;}}
 
+ // These cases use only the isolated database and roll back their catalogue fixtures.
+ String module(boolean enabled,String lifecycle,boolean active){
+  String slug="test_access_"+UUID.randomUUID().toString().substring(0,8);
+  db.update("INSERT INTO modules(slug,name,is_active,assignment_enabled,lifecycle_status,module_category,access_model) VALUES (?,'Synthetic access module',?,?,?,'complementary','module')",slug,active,enabled,lifecycle);
+  return slug;
+ }
+ void grant(long membership,String slug){db.update("INSERT INTO user_company_module_roles(user_company_id,module_slug,role,skill_level) VALUES (?,?,'viewer',0)",membership,slug);}
+ @SuppressWarnings("unchecked") List<Map<String,Object>> moduleCatalog(AuthSessionUser actor){return (List<Map<String,Object>>)((Map<String,Object>)users.getUsers(actor).get("catalog")).get("modules");}
+ Map<String,Object> modulePayload(String slug){var p=payload("user",null,null);p.put("module_slugs",List.of(slug));p.put("tab_permission_keys",List.of());return p;}
+ @Test @Transactional void existingUnavailableAssignmentsSurviveButNewAssignmentsFailForRootAndAdmin(){
+  for(String actorRole:List.of("root","admin")){
+   var owner=company();long actor=person(),actorMembership=membership(owner.companyId(),actor,actorRole);
+   String slug=module(false,"retired",false);grant(actorMembership,slug);
+   long target=person(),targetMembership=membership(owner.companyId(),target,"user");grant(targetMembership,slug);
+   users.updateUser(owner.companyId(),actor,actorRole,target,modulePayload(slug));
+   assertThat(db.queryForList("SELECT module_slug FROM user_company_module_roles WHERE user_company_id=?",String.class,targetMembership)).containsExactly(slug);
+   assertThatThrownBy(()->users.updateUser(owner.companyId(),actor,actorRole,personWithMembership(owner.companyId()),modulePayload(slug)))
+    .isInstanceOfSatisfying(UserAccessException.class,e->assertThat(e.code()).isEqualTo("user_module_not_enabled"));
+  }
+ }
+ long personWithMembership(long company){long id=person();membership(company,id,"user");return id;}
+ @Test @Transactional void companyWithNoEntitlementsCanPreserveExistingButCannotInviteOrAdd(){
+  var a=company();db.update("DELETE FROM company_module_entitlements WHERE company_id=?",a.companyId());
+  long target=personWithMembership(a.companyId());users.updateUser(a.companyId(),a.userId(),a.role(),target,payload("user",null,null));
+  assertThat(moduleCatalog(a)).allSatisfy(row->assertThat(row.get("company_enabled")).isEqualTo(false));
+  assertThatThrownBy(()->users.inviteUser(a.companyId(),a.userId(),a.role(),invite(UUID.randomUUID()+"@example.invalid")))
+   .isInstanceOfSatisfying(UserAccessException.class,e->assertThat(e.code()).isEqualTo("user_module_not_enabled"));
+  var empty=payload("user",null,null);empty.put("module_slugs",List.of());
+  assertThatThrownBy(()->users.updateUser(a.companyId(),a.userId(),a.role(),target,empty))
+   .isInstanceOfSatisfying(UserAccessException.class,e->assertThat(e.code()).isEqualTo("user_modules_required"));
+ }
+ @Test @Transactional void catalogueAndWriteEligibilityAgreeAndStatesAreIndependent(){
+  var a=company();long target=personWithMembership(a.companyId());
+  for(String lifecycle:List.of("released","pilot","planned","development","retired")){
+   String slug=module(true,lifecycle,true);
+   db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES (?,?,'active','test')",a.companyId(),slug);
+   var row=moduleCatalog(a).stream().filter(m->m.get("slug").equals(slug)).findFirst().orElseThrow();
+   boolean assignable=List.of("released","pilot").contains(lifecycle);
+   assertThat(row).containsEntry("entitled",true).containsEntry("actor_assignable",true).containsEntry("company_enabled",assignable).containsEntry("assignable",assignable);
+   if(assignable)users.updateUser(a.companyId(),a.userId(),a.role(),target,modulePayload(slug));
+   else assertThatThrownBy(()->users.updateUser(a.companyId(),a.userId(),a.role(),target,modulePayload(slug)))
+    .isInstanceOfSatisfying(UserAccessException.class,e->assertThat(e.code()).isEqualTo("user_module_not_assignable"));
+  }
+ }
+ @Test @Transactional void activeCompanyMembershipRoleOverridesGlobalRootAndAdminCannotDelegateNewModules(){
+  var owner=company();long admin=person();membership(owner.companyId(),admin,"admin");
+  String slug=module(true,"released",true);db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES (?,?,'active','test')",owner.companyId(),slug);
+  var actor=new AuthSessionUser(admin,owner.companyId(),"Synthetic Admin","root");
+  assertThat(users.getUsers(actor)).containsEntry("actor_role","admin");
+  assertThat(moduleCatalog(actor)).noneMatch(row->row.get("slug").equals(slug)); // Not in the actor's authorized catalogue.
+  long target=personWithMembership(owner.companyId());
+  assertThatThrownBy(()->users.updateUser(owner.companyId(),admin,"root",target,modulePayload(slug)))
+   .isInstanceOfSatisfying(UserAccessException.class,e->assertThat(e.code()).isEqualTo("user_module_not_assignable"));
+  long ordinary=person();membership(owner.companyId(),ordinary,"user");
+  var distributor=new AuthSessionUser(ordinary,owner.companyId(),"Synthetic Distributor","root");
+  assertThat(users.getUsers(distributor)).containsEntry("actor_role","user");
+  assertThat(moduleCatalog(distributor)).isEmpty();
+  assertThatThrownBy(()->users.updateUser(owner.companyId(),ordinary,"root",target,payload("user",null,null))).isInstanceOf(IllegalArgumentException.class);
+ }
+ @Test @Transactional void foreignCompanyCannotSupplyTheActorTargetOrEntitlement(){
+  var a=company();var other=company();long foreignTarget=personWithMembership(other.companyId());
+  assertThatThrownBy(()->users.updateUser(a.companyId(),a.userId(),a.role(),foreignTarget,payload("user",null,null))).isInstanceOf(NoSuchElementException.class);
+  String slug=module(true,"released",true);db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES (?,?,'active','test')",other.companyId(),slug);
+  assertThatThrownBy(()->users.updateUser(a.companyId(),a.userId(),a.role(),personWithMembership(a.companyId()),modulePayload(slug)))
+   .isInstanceOfSatisfying(UserAccessException.class,e->assertThat(e.code()).isEqualTo("user_module_not_enabled"));
+ }
+ @Test @Transactional void tabFailuresHaveTheirOwnCodesAndDoNotChangeStoredAccess(){
+  var a=company();long target=personWithMembership(a.companyId());var tabs=payload("user",null,null);
+  for(var entry:Map.of("unknown.tab","user_tab_permission_unknown","human_resources.payroll","user_tab_permission_module","config_center.users","user_tab_permission_role").entrySet()){
+   tabs.put("tab_permission_keys",List.of(entry.getKey()));
+   assertThatThrownBy(()->users.updateUser(a.companyId(),a.userId(),a.role(),target,tabs))
+    .isInstanceOfSatisfying(UserAccessException.class,e->assertThat(e.code()).isEqualTo(entry.getValue()));
+   long targetMembership=db.queryForObject("SELECT id FROM user_companies WHERE company_id=? AND user_id=?",Long.class,a.companyId(),target);
+   assertThat(new ConfigCenterTabPermissionAccess(db).listUserTabPermissionKeys(targetMembership)).containsExactly("config_center.profile");
+  }
+ }
+
+ @Test @Transactional void explicitlyAuthorizedDelegatedWorkspaceKeepsItsExistingSessionContract(){
+  var actor=company();var managed=company();
+  var trustedWorkspaceIdentity=new AuthSessionUser(actor.userId(),managed.companyId(),null,"Synthetic delegated actor","superadmin");
+  assertThat(users.getUsers(trustedWorkspaceIdentity)).containsEntry("company_id",managed.companyId()).containsEntry("actor_role","superadmin");
+  assertThat(db.queryForObject("SELECT COUNT(*) FROM user_companies WHERE company_id=? AND user_id=?",Integer.class,managed.companyId(),actor.userId())).isZero();
+ }
+ @Test @Transactional void assignmentSwitchAndInactiveEntitlementsStillRejectNewRootGrants(){
+  var actor=company();long target=personWithMembership(actor.companyId());String slug=module(false,"released",true);
+  assertThatThrownBy(()->users.updateUser(actor.companyId(),actor.userId(),actor.role(),target,modulePayload("unknown_access_module")))
+   .isInstanceOfSatisfying(UserAccessException.class,e->assertThat(e.code()).isEqualTo("user_module_unknown"));
+  db.update("INSERT INTO company_module_entitlements(company_id,module_slug,status,source) VALUES (?,?,'active','test')",actor.companyId(),slug);
+  assertThatThrownBy(()->users.updateUser(actor.companyId(),actor.userId(),actor.role(),target,modulePayload(slug)))
+   .isInstanceOfSatisfying(UserAccessException.class,e->assertThat(e.code()).isEqualTo("user_module_not_assignable"));
+  db.update("UPDATE modules SET assignment_enabled=1 WHERE slug=?",slug);
+  db.update("UPDATE company_module_entitlements SET status='suspended' WHERE company_id=? AND module_slug=?",actor.companyId(),slug);
+  assertThatThrownBy(()->users.updateUser(actor.companyId(),actor.userId(),actor.role(),target,modulePayload(slug)))
+   .isInstanceOfSatisfying(UserAccessException.class,e->assertThat(e.code()).isEqualTo("user_module_not_enabled"));
+ }
+
 }

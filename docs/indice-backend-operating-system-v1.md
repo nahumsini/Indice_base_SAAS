@@ -1063,6 +1063,13 @@ state during a race. Passwords are passed exactly to the existing password encod
 trimming; joining with an existing global account does not overwrite its identity/password.
 No schema migration, role model, authentication mechanism or public token redesign is introduced.
 
+The 2026-10-28 Users correction adds independent company/actor module eligibility and effective
+membership-role metadata to the existing catalogue. Existing grants may be retained without
+allowing new ineligible grants; the existing authorized delegated-workspace contract is preserved. Stable module and
+tab validation codes and their preservation semantics are defined in
+[the Users access contract](users-module-tab-scope-standard-2026-08-02.md#company-aware-module-editor-correction-2026-10-28).
+
+
 
 ### Invitation entry revalidation (2026-10-19)
 

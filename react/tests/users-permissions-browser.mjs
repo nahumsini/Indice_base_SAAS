@@ -7,7 +7,7 @@ const origin='http://127.0.0.1:5202';
 const server=await createServer({root:resolve(import.meta.dirname,'..'),cacheDir:'/private/tmp/indice-users-permissions-vite',plugins:[{name:'users-fixture-public-invitation',configureServer(server){server.middlewares.use((request,response,next)=>{if(request.url?.startsWith('/invitations/'))request.url='/tests/browser/users-permissions.html';next();});}}],server:{host:'127.0.0.1',port:5202,strictPort:true,hmr:false,watch:null},define:{'import.meta.env.VITE_API_BASE_URL':'""'}});
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const session=(id,company,role)=>({user:{id,name:'Synthetic Root',role,module_slugs:['config_center','human_resources'],tab_permissions_configured:true,tab_permission_keys:['config_center.profile','config_center.users','config_center.business-structure']},company:{id:company,name:'Synthetic company',role,active:true,commercial_account_type:'SUPER_ADMIN'},companies:[],csrfToken:'synthetic-csrf'});
-const modules=[{slug:'config_center',name:'Panel Inicial',route_key:'home-panel'},{slug:'human_resources',name:'Recursos Humanos',route_key:'human-resources'},{slug:'processes',name:'Procesos y tareas',route_key:'processes'}].map(m=>({...m,module_category:'basic',lifecycle_status:'released',access_model:'tabs',assignable:true,entitled:true,assignment_enabled:true}));
+const modules=[{slug:'config_center',name:'Panel Inicial',route_key:'home-panel'},{slug:'human_resources',name:'Recursos Humanos',route_key:'human-resources'},{slug:'processes',name:'Procesos y tareas',route_key:'processes'}].map(m=>({...m,module_category:'basic',lifecycle_status:'released',access_model:'tabs',assignable:true,entitled:true,assignment_enabled:true,company_enabled:true,actor_assignable:true}));
 const tabs=[['config_center','profile','Mi perfil',['user','admin','superadmin']],['config_center','users','Usuarios',['admin','superadmin']],['config_center','business-structure','Estructura empresarial',['admin','superadmin']],['human_resources','employees','Colaboradores',['admin','superadmin']],['processes','tasks','Tareas',['user','admin','superadmin']]].map(([slug,tab,name,roles],i)=>({module_slug:slug,tab_key:tab,permission_key:`${slug}.${tab}`,name,name_es:name,name_en:name,compatible_roles:roles,default_granted:tab==='profile',tab_order:i}));
 const catalog={units:[{id:10,name:'Synthetic North'},{id:11,name:'Synthetic South'}],businesses:[{id:20,unit_id:10,name:'Synthetic Store'},{id:21,unit_id:11,name:'Synthetic South Store'}],modules,tabs,employee_kiosks:[{id:501,name:'Synthetic Employee Kiosk',owner_module:'human_resources',module_slug:'human_resources',kiosk_type:'employee',unit_id:10,business_id:20,access_level:'employee'},{id:502,name:'Synthetic Other Kiosk',owner_module:'human_resources',module_slug:'human_resources',kiosk_type:'employee',unit_id:11,business_id:21,access_level:'employee'}]};
 const user=(id,name,role='user',status='active')=>({id,user_company_id:id,email:`synthetic-${id}@example.invalid`,nombres:name,apellidos:'',role,status,source:'user',is_protected:role==='root',module_slugs:['config_center','human_resources'],tab_permission_keys:['config_center.profile'],kiosk_definition_ids:[501],unit_id:10,unit_name:'Synthetic North',business_id:20,business_name:'Synthetic Store',scope_type:'business_office'});
@@ -17,12 +17,13 @@ async function flow(engine){
  try{
  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
  await context.addInitScript(()=>localStorage.setItem('frontend-indice-language','es-MX'));
+ let catalogOverride=null,stableError=null,profileRole=null;
  let id=9001,company=9001,role='root',failLoad=false,failRefresh=false,loadDelay=0,saveDelay=0,failMutation=false,loseAck=false,seatFull=false,sequence=100,providerSent=false,acceptCount=0;
  const saved=new Map([[9001,seed()],[9002,seed().map(u=>({...u,nombres:u.nombres.replace('Synthetic','Other')}))]]),writes=[],errors=[],unexpected=[];
  const rows=()=>saved.get(company);
  const isManager=()=>['root','superadmin','admin'].includes(role);
  const capabilities=u=>({can_edit_access:u.source==='user'&&isManager()&&(u.id!==id||role==='root'),can_activate:u.source==='user'&&isManager()&&u.id!==id&&u.status==='inactive',can_deactivate:u.source==='user'&&isManager()&&u.id!==id&&u.status==='active',can_resend_invitation:u.source==='invitation'&&isManager(),can_cancel_invitation:u.source==='invitation'&&isManager()});
- const snapshot=()=>({company_id:company,users:rows().map(u=>({...u,capabilities:capabilities(u)})),capabilities:{can_manage_users:isManager(),can_invite:isManager(),can_assign_super_admin:role==='root'},catalog});
+ const snapshot=()=>({company_id:company,actor_role:role,users:rows().map(u=>({...u,capabilities:capabilities(u)})),capabilities:{can_manage_users:isManager(),can_invite:isManager(),can_assign_super_admin:role==='root'},catalog:catalogOverride??catalog});
  await context.route('**/*',async route=>{
   const request=route.request(),url=new URL(request.url()),path=url.pathname;
   if(url.origin!==origin)return route.abort();if(!path.startsWith('/api/'))return route.continue();const reply=json=>route.fulfill({json});
@@ -32,6 +33,7 @@ async function flow(engine){
   }
   if(path.startsWith('/api/v1/config-center/users/')||path==='/api/v1/config-center/users/invite'){
     assert.equal(request.headers()['x-users-actor'],`${company}:${id}`);assert.equal(request.headers()['x-csrf-token'],'synthetic-csrf');const ownCompany=company,body=request.postData()?request.postDataJSON():{},method=request.method();writes.push({path,method,body,company:ownCompany});await delay(saveDelay);
+    if(stableError){const code=stableError;stableError=null;return route.fulfill({status:400,json:{code,message:'Synthetic server detail'}});}
     if(failMutation){failMutation=false;return route.fulfill({status:503,json:{message:'SQL synthetic private detail'}});}
     if(seatFull)return route.fulfill({status:409,json:{code:'SEAT_CAPACITY_EXCEEDED',message:'Synthetic capacity detail',seats:{active:3,reserved:2,limit:5}}});
     let result={success:true};const list=saved.get(ownCompany);
@@ -56,7 +58,7 @@ async function flow(engine){
     acceptCount++;assert.equal(request.method(),'POST');assert.deepEqual(request.postDataJSON(),{password:' x ',confirm_password:' x '});await delay(300);return reply({accepted:true,user_id:9020,user_company_id:9020});
   }
   if(path==='/api/v1/invitations/synthetic-cancelled')return reply({email:'synthetic-cancelled@example.invalid',full_name:'Synthetic Invitee',role:'user',company_id:company,company_name:'Synthetic Company',status:'cancelled'});
-  if(path==='/api/v1/config-center/current-user')return reply({id,nombres:'Synthetic',apellidos:'Root',email:'synthetic@example.invalid',role,preferred_language:'es-MX'});
+  if(path==='/api/v1/config-center/current-user')return reply({id,nombres:'Synthetic',apellidos:'Root',email:'synthetic@example.invalid',role:profileRole??role,preferred_language:'es-MX'});
   if(path==='/api/v1/auth/me')return reply(session(id,company,role));
   if(path.includes('/billing/')&&path.endsWith('/subscription'))return reply({seat_limit_enforced:false,remaining_seats:99,active_seats:3,pending_invitations:1});
   if(path.startsWith('/api/v1/workspace-state/'))return reply({state:request.method()==='PUT'?request.postDataJSON().state:{},schemaVersion:1});
@@ -66,7 +68,7 @@ async function flow(engine){
   if(path.includes('notifications'))return reply({items:[],summary:{total_count:0,unread_count:0}});
   unexpected.push(`${request.method()} ${path}`);return route.fulfill({status:503,json:{}});
  });
- const page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message));
+ const page=await context.newPage();page.setDefaultTimeout(30000);page.on('pageerror',e=>errors.push(e.message));
  const row=name=>page.locator('article:visible,tbody tr:visible').filter({hasText:name}).first();
  const ready=()=>page.getByRole('button',{name:'Invitar usuario',exact:true}).waitFor();
  const dialog=()=>page.getByRole('dialog');
@@ -81,6 +83,40 @@ async function flow(engine){
  const fit=async()=>{const size=await page.evaluate(()=>({width:innerWidth,body:document.documentElement.scrollWidth,main:document.querySelector('[data-users-scroll]').scrollWidth}));assert(size.body<=size.width&&size.main<=size.width,JSON.stringify(size));};
  const switchActor=async(next,nextCompany=9001,nextRole='root')=>{id=next;company=nextCompany;role=nextRole;await page.evaluate(({id,company,role})=>window.usersFixture.switchUser(id,company,role),{id,company,role});};
  await page.goto(`${origin}/tests/browser/users-permissions.html`);await ready();assert.equal(writes.length,0);
+ // Module access regression: complete catalogue, independent states and preservation without new grants.
+ const moduleButton=slug=>dialog().locator(`button[aria-pressed][aria-describedby$="-${slug}-state"]`);
+ catalogOverride={...catalog,modules:catalog.modules.map(m=>({...m,assignable:false,entitled:false,company_enabled:false}))};
+ await page.reload();await ready();await edit('Synthetic Operator');
+ assert.equal(await moduleButton('config_center').isDisabled(),true);assert.equal(await moduleButton('config_center').getAttribute('aria-pressed'),'true');
+ assert.equal(await moduleButton('legacy_extra').isDisabled(),true);assert.equal(await moduleButton('legacy_extra').getAttribute('aria-pressed'),'true');
+ await dialog().getByText('Empresa: No habilitado', {exact:false}).first().waitFor();
+ assert.equal(await save().isEnabled(),true);await save().click();await dialog().waitFor({state:'hidden'});
+ assert.deepEqual(writes.at(-1).body.module_slugs.sort(),['config_center','human_resources','legacy_extra']);
+ assert.deepEqual(writes.at(-1).body.tab_permission_keys,['config_center.profile']);
+ catalogOverride={...catalog,modules:[{...catalog.modules[0],company_enabled:undefined},...catalog.modules.slice(1)]};
+ await page.reload();await ready();await edit('Synthetic Operator');assert.equal(await moduleButton('config_center').isDisabled(),true);
+ await dialog().getByText('Empresa: Desconocido',{exact:false}).first().waitFor();
+ await dialog().getByRole('combobox',{name:'Alcance organizacional',exact:true}).selectOption('corporate_office');
+ failLoad=true;await dialog().getByRole('button',{name:'Recargar catálogo',exact:true}).click();await delay(100);
+ assert.equal(await dialog().getByRole('combobox',{name:'Alcance organizacional',exact:true}).inputValue(),'corporate_office');
+ failLoad=false;catalogOverride=null;await dialog().getByRole('button',{name:'Recargar catálogo',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('button[aria-describedby$="-config_center-state"]').disabled);
+ assert.equal(await dialog().getByRole('combobox',{name:'Alcance organizacional',exact:true}).inputValue(),'corporate_office');
+ for(const [code,copy] of [['user_module_not_enabled','no está habilitado'],['user_module_not_assignable','No puedes asignar'],['user_tab_permission_role','El rol elegido']]){
+  stableError=code;await save().click();await dialog().getByRole('alert').filter({hasText:copy}).waitFor();
+  assert.equal(await moduleButton('config_center').getAttribute('aria-pressed'),'true');
+  assert.equal(await dialog().getByRole('combobox',{name:'Alcance organizacional',exact:true}).inputValue(),'corporate_office');
+ }
+ await cancel();
+ // Global/profile Root cannot override an active-company Admin in the editor.
+ profileRole='root';await switchActor(9011,9001,'admin');await ready();await edit('Synthetic Operator');
+ await dialog().getByText('Rol efectivo en esta empresa: admin',{exact:true}).waitFor();
+ assert.equal(await dialog().getByRole('combobox',{name:'Rol del sistema',exact:true}).locator('option[value="Super Admin"]').count(),0);
+ await cancel();profileRole=null;await switchActor(9001,9001,'root');await ready();
+ // A genuinely empty edit is still blocked when there is no retained assignment.
+ await edit('Synthetic Admin');await moduleButton('config_center').click();await moduleButton('human_resources').click();assert.equal(await save().isDisabled(),true);await dialog().getByRole('alert').filter({hasText:'Selecciona al menos un módulo'}).waitFor();await cancel();
+ writes.length=0;
+ console.log(`${engine}: preserved disabled/unknown assignments, retry without draft loss, distinct server errors, company role and truly empty validation pass`);
  await edit('Synthetic Operator');await dialog().getByRole('combobox',{name:'Alcance organizacional',exact:true}).selectOption('unit_headquarters');saveDelay=400;await save().evaluate(el=>{el.click();el.click();});await delay(60);assert.equal(await dialog().getByRole('button',{name:'Cancelar',exact:true}).last().isDisabled(),true);await dialog().waitFor({state:'hidden'});assert.equal(writes.length,1);assert.equal(writes[0].body.unit_id,10);assert.equal(writes[0].body.business_id,null);assert(writes[0].body.module_slugs.includes('legacy_extra'));saveDelay=0;
  await edit('Synthetic Operator');await dialog().getByRole('combobox',{name:'Alcance organizacional',exact:true}).selectOption('corporate_office');await dialog().getByRole('button',{name:/Synthetic Other Kiosk/}).click();await save().click();await dialog().waitFor({state:'hidden'});assert.equal(writes.at(-1).body.unit_id,null);assert.equal(writes.at(-1).body.business_id,null);assert(writes.at(-1).body.kiosk_definition_ids.includes(502));
  await edit('Synthetic Root');await save().click();await dialog().waitFor({state:'hidden'});assert.equal(writes.at(-1).body.role,'root');

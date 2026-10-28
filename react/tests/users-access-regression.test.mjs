@@ -144,7 +144,7 @@ test('selector de pestañas escala por busqueda y modulos plegables', () => {
   assert.match(tabPermissionPickerSource, /selectedCount/);
   assert.match(tabPermissionPickerSource, /tab\.name_es/);
   assert.match(tabPermissionPickerSource, /categoryFilter/);
-  assert.match(tabPermissionPickerSource, /module\.assignable === false/);
+  assert.match(tabPermissionPickerSource, /moduleAssignmentState/);
   assert.match(tabPermissionPickerSource, /onModuleChange/);
 });
 
