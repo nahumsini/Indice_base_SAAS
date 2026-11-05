@@ -37,6 +37,7 @@ export const AI_SCOPE_DEFINITIONS = [
   { code: 'quotes.read', group: 'sales', kind: 'read' },
   { code: 'commercial.references:read', group: 'sales', kind: 'read' },
   { code: 'customers.create', group: 'actions', kind: 'action' },
+  { code: 'mailing.lists.assign', group: 'actions', kind: 'action' },
   { code: 'customers.update', group: 'actions', kind: 'action' },
   { code: 'opportunities.create', group: 'actions', kind: 'action' },
   { code: 'opportunities.update', group: 'actions', kind: 'action' },
@@ -88,6 +89,7 @@ export const AI_SCOPE_DEFINITIONS = [
   { code: 'petty_cash.read', group: 'finance', kind: 'read' },
   { code: 'receivables.read', group: 'finance', kind: 'read' },
   { code: 'finance.references:read', group: 'finance', kind: 'read' },
+  { code: 'mailing.lists.read', group: 'sales', kind: 'read' },
   { code: 'customers.read', group: 'sales', kind: 'read' },
   { code: 'providers.read', group: 'finance', kind: 'read' },
   { code: 'warehouses.read', group: 'inventory', kind: 'read' },
@@ -136,7 +138,7 @@ export const READ_SCOPE_GROUPS: ReadonlyArray<{
   scopeCodes: AiScopeCode[];
 }> = [
   { id: 'overview', scopeCodes: ['sales.today:read', 'business.snapshot:read', 'business.context:read'] },
-  { id: 'sales', scopeCodes: ['sales.read', 'pos.read', 'customers.read', 'opportunities.read', 'quotes.read', 'commercial.references:read'] },
+  { id: 'sales', scopeCodes: ['sales.read', 'pos.read', 'customers.read', 'mailing.lists.read', 'opportunities.read', 'quotes.read', 'commercial.references:read'] },
   { id: 'inventory', scopeCodes: ['inventory.read', 'warehouses.read'] },
   { id: 'people', scopeCodes: ['learning.read', 'hr.people:read', 'hr.people.details:read', 'hr.assets.read', 'hr.records.read', 'hr.announcements.read', 'hr.announcements.receipts:read', 'hr.permissions.self:read', 'hr.permissions.read', 'hr.incentives.read', 'hr.attendance:read', 'hr.control.read', 'hr.payroll.read', 'hr.kpis:read'] },
   { id: 'work', scopeCodes: ['tasks.read', 'tasks.kpis:read', 'projects.read', 'processes.read'] },

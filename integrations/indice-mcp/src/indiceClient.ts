@@ -1,3 +1,6 @@
+import {
+  mailingListSearch, mailingListDirectory, mailingAssignmentInput, mailingAssignmentPreview, mailingAssignmentResult,
+} from "./mailingListContracts.js";
 import { meetingQuerySchemas, meetingChangeSchemas, meetingCommitSchema, meetingReadSchemas, meetingPreviewSchema, meetingCommittedSchema, type MeetingReadName, type MeetingActionName, type MeetingQuery, type MeetingChange, type MeetingCommit } from "./meetingTools.js";
 import {financeReadNameSchema,financeActionNameSchema,financeInputs,financeQuerySchema,financeCommitRequestSchema,PageSchema,PreviewSchema,CommittedSchema,type FinanceReadName,type FinanceWorkflowActionName,type FinanceQuery,type FinanceChange,type FinancePage,type FinancePreview,type FinanceCommitted} from "./financeContracts.js";
 import { terminalReadNameSchema,terminalActionNameSchema,terminalQuerySchema,terminalInputs,terminalReadSchema,terminalPreviewSchema,terminalCommittedSchema,terminalCommitRequestSchema,type TerminalReadName,type TerminalActionName,type TerminalQuery,type TerminalChange,type TerminalReadResult,type TerminalPreview,type TerminalCommitted } from "./terminalContracts.js";
@@ -127,6 +130,41 @@ export class IndiceClient {
     const response=await this.request(`/api/v1/ai/tools/inventory_workflows/${action}/commit`,{method:"POST",headers:{Authorization:`Bearer ${this.requireDelegatedToken()}`,"Content-Type":"application/json"},body:JSON.stringify(inventoryCommitRequestSchema.parse(request))});
     if(!response.ok)throw await this.apiError(response,"Unable to apply the workflow.");
     const result=inventoryCommittedSchema.safeParse(await response.json());if(!result.success)throw new IndiceApiError("Invalid workflow commit contract.");return result.data;
+  }
+
+  async listMailingLists(input: z.infer<typeof mailingListSearch>) {
+    return mailingListDirectory.parse(await this.mailingListRequest("list_mailing_lists", mailingListSearch.parse(input)));
+  }
+
+  async previewMailingAssignment(input: z.infer<typeof mailingAssignmentInput>) {
+    return mailingAssignmentPreview.parse(await this.mailingListRequest("assign_mailing_list_contacts/preview", mailingAssignmentInput.parse(input)));
+  }
+
+  async commitMailingAssignment(input: TaskCommitRequest) {
+    return mailingAssignmentResult.parse(await this.mailingListRequest("assign_mailing_list_contacts/commit", input));
+  }
+
+  private async mailingListRequest(path: string, input: object): Promise<unknown> {
+    const response = await this.request(`/api/v1/ai/tools/mailing_lists/${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.requireDelegatedToken()}`, "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!response.ok) {
+      const payload: unknown = await response.json().catch(() => null);
+      const code = payload && typeof payload === "object" && "code" in payload ? payload.code : null;
+      const messages: Record<string, string> = {
+        mailing_version_conflict: "La lista cambió. Prepara una nueva vista previa y vuelve a confirmar.",
+        mailing_list_capacity_exceeded: "La lista admite hasta 500 integrantes. Reduce la selección o elige otro destino.",
+        mailing_selection_limit: "Los filtros coinciden con más de 500 contactos. Reduce la selección.",
+        mailing_contact_unavailable: "Algún contacto no está disponible. Revisa los contactos y prepara una nueva vista previa.",
+        confirmation_expired_or_used: "La confirmación ya no es válida. Prepara una nueva vista previa.",
+        confirmation_invalid: "La confirmación ya no es válida. Prepara una nueva vista previa.",
+      };
+      const fallback = "No se pudo completar la operación de segmentación.";
+      throw await this.apiError(response, typeof code === "string" && Object.hasOwn(messages, code) ? messages[code]! : fallback);
+    }
+    return response.json();
   }
 
   async readSalesWorkflow(tool:SalesWorkflowReadName,request:SalesWorkflowQuery):Promise<SalesWorkflowReadResult>{

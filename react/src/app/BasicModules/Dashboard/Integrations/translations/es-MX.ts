@@ -144,6 +144,8 @@ export const esMX: IntegrationsTranslations = {
     'quotes.read': { label: 'Cotizaciones', description: 'Consulta cotizaciones, partidas y totales.' },
     'commercial.references:read': { label: 'Responsables comerciales', description: 'Identifica responsables activos dentro de tu alcance.' },
     'customers.create': { label: 'Crear clientes', description: 'Crear clientes sólo después de confirmar la vista previa.' },
+    'mailing.lists.read': { label: 'Listas de segmentación', description: 'Consulta listas y opciones de filtros de Mailing.' },
+    'mailing.lists.assign': { label: 'Asignar contactos a listas', description: 'Añade contactos a listas existentes tras revisar y confirmar la vista previa.' },
     'customers.update': { label: 'Editar clientes', description: 'Editar clientes sólo después de confirmar la vista previa.' },
     'opportunities.create': { label: 'Crear oportunidades', description: 'Crear oportunidades sólo después de confirmar la vista previa.' },
     'opportunities.update': { label: 'Editar oportunidades', description: 'Editar oportunidades sólo después de confirmar la vista previa.' },

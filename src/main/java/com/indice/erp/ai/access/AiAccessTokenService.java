@@ -98,6 +98,8 @@ public class AiAccessTokenService {
     public static final String RECEIVABLES_READ = "receivables.read";
     public static final String BUSINESS_CONTEXT_READ = "business.context:read";
     public static final String FINANCE_REFERENCES_READ = "finance.references:read";
+    public static final String MAILING_LISTS_READ = "mailing.lists.read";
+    public static final String MAILING_LISTS_ASSIGN = "mailing.lists.assign";
     public static final String CUSTOMERS_READ = "customers.read";
     public static final String PROVIDERS_READ = "providers.read";
     public static final String WAREHOUSES_READ = "warehouses.read";
@@ -169,7 +171,7 @@ public class AiAccessTokenService {
         TASKS_CREATE, TASKS_DELEGATE, TASKS_UPDATE, TASKS_ORGANIZE, TASKS_OPERATE, TASKS_AUDIT,
         HR_CONTROL_MANAGE, HR_ATTENDANCE_CORRECT, HR_PAYROLL_PREPARE, HR_PAYROLL_APPROVE, HR_PAYROLL_PAY, PROJECTS_MANAGE, PROCESSES_MANAGE, PROCESSES_RUN,
         HR_INCENTIVES_MANAGE, HR_PERMISSIONS_REQUEST, HR_PERMISSIONS_REVIEW, HR_PEOPLE_MANAGE, HR_PEOPLE_TERMINATE, HR_PEOPLE_IMPORT, HR_ASSETS_MANAGE, HR_ANNOUNCEMENTS_MANAGE, HR_RECORDS_MANAGE, HR_ANNOUNCEMENTS_RESPOND,
-        CUSTOMERS_CREATE, CUSTOMERS_UPDATE, OPPORTUNITIES_CREATE, OPPORTUNITIES_UPDATE, QUOTES_CREATE, QUOTES_UPDATE,
+        MAILING_LISTS_ASSIGN, CUSTOMERS_CREATE, CUSTOMERS_UPDATE, OPPORTUNITIES_CREATE, OPPORTUNITIES_UPDATE, QUOTES_CREATE, QUOTES_UPDATE,
         EXPENSES_CREATE,
         PETTY_CASH_EXPENSE_CREATE,
         PETTY_CASH_DEPOSIT_CREATE
@@ -438,6 +440,7 @@ public class AiAccessTokenService {
     private static Set<String> supportedScopes(Set<String> reads, Set<String> actions) {
         var scopes = new java.util.HashSet<>(reads);
         scopes.addAll(actions);
+        scopes.add(MAILING_LISTS_READ);
         return Set.copyOf(scopes);
     }
 

@@ -157,6 +157,12 @@ public class AiToolCapabilityService {
             () -> authorizationService.canAddMoneyToFund(user),
             "preview_add_money_to_fund", "add_money_to_fund");
 
+        add(tools, token, AiAccessTokenService.MAILING_LISTS_READ,
+            () -> authorizationService.canUseMailingLists(user, false), "list_mailing_lists");
+        add(tools, token, AiAccessTokenService.MAILING_LISTS_ASSIGN,
+            () -> authorizationService.canUseMailingLists(user, true),
+            "preview_assign_mailing_list_contacts", "assign_mailing_list_contacts");
+
         for (String tool : com.indice.erp.ai.commercial.AiCommercialAccess.READS) {
             add(tools, token, com.indice.erp.ai.commercial.AiCommercialAccess.scope(tool),
                 () -> authorizationService.canUseCommercialTool(user, tool), tool);

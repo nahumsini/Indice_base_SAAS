@@ -87,10 +87,22 @@ public class MailingController {
         @Valid @ModelAttribute MailingAudienceContracts.Filters filters) {
         return audience.selection(actor(session,null,false,true),filters);
     }
+    @PostMapping("/audience/selection-match")
+    public MailingAudienceContracts.SelectionMatch audienceSelectionMatch(HttpSession session,
+        @RequestHeader(name="X-CSRF-Token", required=false) String token,
+        @Valid @ModelAttribute MailingAudienceContracts.Filters filters,
+        @Valid @RequestBody MailingAudienceContracts.Selection selection) {
+        return audience.selectionMatch(actor(session, token, true, true), filters, selection);
+    }
     @PostMapping("/audience/preview") public MailingAudienceContracts.Summary audiencePreview(HttpSession session,
         @RequestHeader(name="X-CSRF-Token",required=false) String token,@Valid @RequestBody MailingAudienceContracts.Selection input) {
         return audience.preview(actor(session,token,true,true),input.contactIds());
     }
+    @GetMapping("/audience/memberships")
+    public java.util.List<MailingAudienceContracts.Membership> audienceMemberships(HttpSession session) {
+        return audience.memberships(actor(session, null, false, true));
+    }
+
     @GetMapping("/audience/lists") public java.util.List<MailingAudienceContracts.SavedList> audienceLists(HttpSession session) {
         return audience.lists(actor(session,null,false,true));
     }
@@ -100,6 +112,12 @@ public class MailingController {
     @PutMapping("/audience/lists/{id}") public MailingAudienceContracts.SavedList saveAudienceList(HttpSession session,@PathVariable String id,
         @RequestHeader(name="X-CSRF-Token",required=false) String token,@Valid @RequestBody MailingAudienceContracts.ListInput input) {
         return audience.save(actor(session,token,true,true),id,input);
+    }
+    @PostMapping("/audience/lists/{id}/members")
+    public MailingAudienceContracts.SavedList addAudienceMembers(HttpSession session, @PathVariable String id,
+        @RequestHeader(name="X-CSRF-Token", required=false) String token,
+        @Valid @RequestBody MailingAudienceContracts.ListInput input) {
+        return audience.addMembers(actor(session, token, true, true), id, input);
     }
     @PostMapping("/audience/lists/{id}/archive") public void archiveAudienceList(HttpSession session,@PathVariable String id,
         @RequestHeader(name="X-CSRF-Token",required=false) String token,@Valid @RequestBody MailingAudienceContracts.Version input) {

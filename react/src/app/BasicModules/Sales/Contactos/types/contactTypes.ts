@@ -2,7 +2,7 @@ import type { OpportunitySource } from '../../salesCrmContext';
 
 export type ContactSortColumn = 'contact' | 'company' | 'phone' | 'email' | 'source' | 'owner' | 'notes';
 export type ContactSortDirection = 'asc' | 'desc';
-export type ContactColumnId = ContactSortColumn | 'relationship' | 'fiscal';
+export type ContactColumnId = ContactSortColumn | 'relationship' | 'fiscal' | 'segmentationLists';
 
 export type ContactSortState = {
   columnId: ContactSortColumn;

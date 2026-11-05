@@ -1,6 +1,7 @@
 package com.indice.erp.sales.mailing;
 
 import com.indice.erp.auth.*;
+import com.indice.erp.ai.access.AiAccessTokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 import org.junit.jupiter.api.*;
@@ -24,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MailingAudienceIntegrationTest {
     @Autowired MailingTemplateService templateService;
     @Autowired MailingAudienceService audience;
+    @Autowired AiAccessTokenService aiTokens;
     @Autowired JdbcTemplate db;@Autowired MailingService service;@Autowired MockMvc mvc;@Autowired ObjectMapper mapper;
     long company,other,user,membership,contact,foreignContact;AuthSessionUser actor;
     long insert(String sql,Object...args){var key=new GeneratedKeyHolder();db.update(c->{var s=c.prepareStatement(sql,java.sql.Statement.RETURN_GENERATED_KEYS);for(int i=0;i<args.length;i++)s.setObject(i+1,args[i]);return s;},key);return key.getKey().longValue();}
@@ -49,6 +51,23 @@ class MailingAudienceIntegrationTest {
         assertThat(audience.contacts(actor,filters("","other",null,"",""),1,10).total()).isZero();
         assertThat(audience.contacts(actor,filters("Foreign","",null,"",""),1,10).total()).isZero();
         assertThat(audience.options(actor).tags()).containsExactly("active","clinic");assertThat(audience.options(actor).owners()).hasSize(1);assertThat(audience.options(actor).sources()).containsExactly("website");
+    }
+    @Test void segmentationFiltersCountSelectedContactsAcrossTheDirectory() throws Exception {
+        long unassigned = insert("INSERT INTO sales_contacts(company_id,contact_code,company_name) VALUES(?,'NO-LIST','Unassigned')",company);
+        String listId = UUID.randomUUID().toString();
+        audience.save(actor,listId,new MailingAudienceContracts.ListInput("Prospecting",List.of(contact),0));
+        var noList = new MailingAudienceContracts.Filters(null,null,null,null,"none",null,null,null);
+        assertThat(audience.selection(actor,noList)).extracting(MailingAudienceContracts.Contact::id).containsExactly(unassigned);
+
+        String body = mapper.writeValueAsString(new MailingAudienceContracts.Selection(List.of(contact,contact,unassigned,foreignContact)));
+        mvc.perform(post("/api/v1/mailing/audience/selection-match").session(session())
+                .header("X-CSRF-Token","synthetic-csrf").param("listId",listId)
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.matching").value(1));
+
+        audience.archive(actor,listId,1);
+        assertThat(audience.selection(actor,noList)).extracting(MailingAudienceContracts.Contact::id)
+            .containsExactlyInAnyOrder(contact,unassigned);
     }
     @Test void selectionNeverTruncatesBeyondFiveHundredAndSearchCanNarrowIt() {
         for(int i=0;i<500;i++)db.update("INSERT INTO sales_contacts(company_id,contact_code,company_name,email) VALUES(?,?,?,?)",company,"BULK-"+i,"Bulk "+i,"bulk"+i+"@example.com");
@@ -88,6 +107,68 @@ class MailingAudienceIntegrationTest {
         var history=audience.history(actor,contact,1,10);assertThat(history.total()).isEqualTo(1);assertThat(history.items().getFirst().email()).isEqualTo("original@example.com");assertThat(history.items().getFirst().deliveryState()).isEqualTo("ACCEPTED");
         assertThatThrownBy(()->audience.history(actor,foreignContact,1,10)).hasMessageContaining("mailing_contact_unavailable");
     }
+    @Test void delegatedMailingAssignmentFreezesTheFilteredSetAndReplaysWithoutDuplicates() throws Exception {
+        long individual = insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,source) VALUES(?,'IND','Individual','website')",company);
+        long filtered = insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,source) VALUES(?,'FILTERED','Filtered','website')",company);
+        String listId = UUID.randomUUID().toString();
+        audience.save(actor,listId,new MailingAudienceContracts.ListInput("Prospecting",List.of(contact),0));
+        var user = new AuthSessionUser(this.user, company, membership, "Mailing test", "admin");
+        var legacy = aiTokens.issue(user,"Legacy customer connection",1,Set.of(AiAccessTokenService.CUSTOMERS_READ));
+        var granted = aiTokens.issue(user,"Mailing test",1,Set.of(AiAccessTokenService.MAILING_LISTS_READ,AiAccessTokenService.MAILING_LISTS_ASSIGN));
+        String root = "/api/v1/ai/tools/mailing_lists/";
+        String assignment = root + "assign_mailing_list_contacts";
+
+        mvc.perform(post(root+"list_mailing_lists").header("Authorization","Bearer "+legacy.accessToken())
+            .contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isUnauthorized());
+        mvc.perform(post(root+"list_mailing_lists").header("Authorization","Bearer "+granted.accessToken())
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.lists[0].id").value(listId));
+        mvc.perform(get("/api/v1/ai/access/capabilities").header("Authorization","Bearer "+legacy.accessToken()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.tools").value(org.hamcrest.Matchers.not(
+                org.hamcrest.Matchers.hasItem("assign_mailing_list_contacts"))));
+
+        var individualPreview = mailingPreview(assignment, granted.accessToken(), Map.of("listId",listId,"contactIds",List.of(individual)));
+        assertThat(individualPreview.get("additions").get(0).get("id").asLong()).isEqualTo(individual);
+        assertThat(audience.list(actor,listId).list().contactCount()).isEqualTo(1);
+        mailingCommit(assignment, granted.accessToken(), individualPreview.get("confirmationToken").asText(), "individual-001")
+            .andExpect(status().isOk()).andExpect(jsonPath("$.result.added").value(1));
+
+        var bulk = mailingPreview(assignment,granted.accessToken(),Map.of("listId",listId,"filters",Map.of("source","website")));
+        assertThat(bulk.get("alreadyInList").asInt()).isEqualTo(1);
+        assertThat(bulk.get("additions").size()).isEqualTo(1);
+        assertThat(bulk.get("additions").get(0).get("id").asLong()).isEqualTo(filtered);
+        long arrivedLater = insert("INSERT INTO sales_contacts(company_id,contact_code,company_name,source) VALUES(?,'LATER','Arrived later','website')",company);
+        String confirmation = bulk.get("confirmationToken").asText();
+        mailingCommit(assignment,granted.accessToken(),confirmation,"bulk-001")
+            .andExpect(status().isOk()).andExpect(jsonPath("$.result.added").value(1)).andExpect(jsonPath("$.replayed").value(false));
+        mailingCommit(assignment,granted.accessToken(),confirmation,"bulk-001")
+            .andExpect(status().isOk()).andExpect(jsonPath("$.replayed").value(true));
+        assertThat(audience.list(actor,listId).items()).extracting(MailingAudienceContracts.Contact::id)
+            .containsExactlyInAnyOrder(contact,individual,filtered).doesNotContain(arrivedLater);
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM ai_action_executions WHERE company_id=?",Integer.class,company)).isEqualTo(2);
+
+        var stale = mailingPreview(assignment,granted.accessToken(),Map.of("listId",listId,"contactIds",List.of(arrivedLater)));
+        var current = audience.list(actor,listId).list();
+        audience.save(actor,listId,new MailingAudienceContracts.ListInput("Renamed",List.of(contact,individual,filtered),current.version()));
+        mailingCommit(assignment,granted.accessToken(),stale.get("confirmationToken").asText(),"stale-001")
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("mailing_version_conflict"));
+        assertThat(audience.list(actor,listId).items()).extracting(MailingAudienceContracts.Contact::id).doesNotContain(arrivedLater);
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode mailingPreview(String path, String token, Object body) throws Exception {
+        var result = mvc.perform(post(path+"/preview").header("Authorization","Bearer "+token)
+            .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(body)))
+            .andExpect(status().isOk()).andReturn();
+        return mapper.readTree(result.getResponse().getContentAsByteArray());
+    }
+
+    private org.springframework.test.web.servlet.ResultActions mailingCommit(String path, String token,
+        String confirmation, String key) throws Exception {
+        return mvc.perform(post(path+"/commit").header("Authorization","Bearer "+token)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(Map.of("confirmationToken",confirmation,"idempotencyKey",key))));
+    }
+
     @Test void audienceEndpointsRequireSessionTabsCsrfAndMutationRole() throws Exception {
         String id=UUID.randomUUID().toString(),url="/api/v1/mailing/audience/lists/"+id;
         String body=mapper.writeValueAsString(new MailingAudienceContracts.ListInput("List",List.of(contact),0));

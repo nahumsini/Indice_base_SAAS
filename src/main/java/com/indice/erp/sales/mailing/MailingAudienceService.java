@@ -42,7 +42,19 @@ public class MailingAudienceService {
         if(!source.isEmpty()){where.append(" AND s.source=?");args.add(source);}
         if(f.owner()!=null){require(f.owner()>0,BAD_REQUEST,"mailing_filters_invalid");where.append(" AND s.owner_user_company_id=?");args.add(f.owner());}
         if(!tag.isEmpty()){where.append(" AND JSON_CONTAINS(COALESCE(s.tags_json,JSON_ARRAY()),JSON_QUOTE(?))");args.add(tag);}
-        if(!list.isEmpty()){saved(company,list);where.append(" AND EXISTS(SELECT 1 FROM sales_mailing_audience_members m WHERE m.company_id=s.company_id AND m.list_id=? AND m.contact_id=s.id)");args.add(list);}
+        if ("none".equals(list)) {
+            where.append("""
+                 AND NOT EXISTS (
+                    SELECT 1 FROM sales_mailing_audience_members m
+                    JOIN sales_mailing_audience_lists l ON l.company_id=m.company_id AND l.id=m.list_id
+                    WHERE m.company_id=s.company_id AND m.contact_id=s.id AND l.status='ACTIVE'
+                 )
+                """);
+        } else if (!list.isEmpty()) {
+            saved(company,list);
+            where.append(" AND EXISTS(SELECT 1 FROM sales_mailing_audience_members m WHERE m.company_id=s.company_id AND m.list_id=? AND m.contact_id=s.id)");
+            args.add(list);
+        }
         if(!state.isEmpty()){require(Set.of("READY","CONSENT_REQUIRED","INVALID","SUPPRESSED").contains(state),BAD_REQUEST,"mailing_filters_invalid");where.append(" AND (").append(ELIGIBILITY).append(")=?");args.add(state);}
         String column=switch(clean(f.sort())){case "", "name"->"COALESCE(NULLIF(TRIM(s.contact_person),''),s.company_name)";case "companyName"->"s.company_name";case "email"->"s.email";case "ownerName"->"s.owner_name";default->throw new org.springframework.web.server.ResponseStatusException(BAD_REQUEST,"mailing_filters_invalid");};
         String direction=clean(f.direction());if(direction.isEmpty())direction="asc";require(Set.of("asc","desc").contains(direction),BAD_REQUEST,"mailing_filters_invalid");
@@ -58,6 +70,19 @@ public class MailingAudienceService {
         var a=access.read(actor);var q=query(a.companyId(),filters);
         var rows=db.query("SELECT "+FIELDS+FROM+q.where()+" ORDER BY "+q.order()+" LIMIT 501",MailingAudienceService::contact,q.args().toArray());
         require(rows.size()<=500,CONFLICT,"mailing_selection_limit");return rows;
+    }
+    @Transactional(readOnly = true)
+    public SelectionMatch selectionMatch(AuthSessionUser actor, Filters filters, Selection selection) {
+        var user = access.read(actor);
+        var query = query(user.companyId(), filters);
+        var ids = new LinkedHashSet<>(selection.contactIds());
+        if (ids.isEmpty()) return new SelectionMatch(0);
+        var args = new ArrayList<>(query.args());
+        args.addAll(ids);
+        long matching = db.queryForObject(
+            "SELECT COUNT(*)" + FROM + query.where() + " AND s.id IN (" + slots(ids.size()) + ")",
+            Long.class, args.toArray());
+        return new SelectionMatch(matching);
     }
     @Transactional(readOnly=true) public Options options(AuthSessionUser actor) {
         var a=access.read(actor);long company=a.companyId();
@@ -82,6 +107,19 @@ public class MailingAudienceService {
         }
         return new Summary(items.size(),ready,consent,items.size()-ready-consent,items);
     }
+    @Transactional(readOnly = true)
+    public List<Membership> memberships(AuthSessionUser actor) {
+        return db.query("""
+            SELECT m.contact_id, l.id, l.name
+            FROM sales_mailing_audience_members m
+            JOIN sales_mailing_audience_lists l ON l.company_id=m.company_id AND l.id=m.list_id
+            JOIN sales_contacts s ON s.company_id=m.company_id AND s.id=m.contact_id
+            WHERE m.company_id=? AND l.status='ACTIVE' AND
+            """ + VALID + " ORDER BY l.name, l.id",
+            (row, index) -> new Membership(row.getLong(1), row.getString(2), row.getString(3)),
+            access.read(actor).companyId());
+    }
+
     @Transactional(readOnly=true) public List<SavedList> lists(AuthSessionUser actor) {long company=access.read(actor).companyId();return db.query("SELECT l.*,(SELECT COUNT(*) FROM sales_mailing_audience_members m WHERE m.company_id=l.company_id AND m.list_id=l.id) AS member_count FROM sales_mailing_audience_lists l WHERE l.company_id=? AND l.status='ACTIVE' ORDER BY l.name,l.id",MailingAudienceService::list,company);}
     private static SavedList list(ResultSet r,int n) throws SQLException {return new SavedList(r.getString("id"),r.getString("name"),r.getLong("version"),r.getInt("member_count"),r.getTimestamp("updated_at").toInstant());}
     private SavedList saved(long company,String id) {return db.query("SELECT l.*,(SELECT COUNT(*) FROM sales_mailing_audience_members m WHERE m.company_id=l.company_id AND m.list_id=l.id) AS member_count FROM sales_mailing_audience_lists l WHERE l.company_id=? AND l.id=? AND l.status='ACTIVE'",MailingAudienceService::list,company,id).stream().findFirst().orElseThrow(()->new org.springframework.web.server.ResponseStatusException(NOT_FOUND,"mailing_list_not_found"));}
@@ -105,6 +143,92 @@ public class MailingAudienceService {
         for(var row:rows)db.update("INSERT INTO sales_mailing_audience_members(company_id,list_id,contact_id) VALUES(?,?,?)",a.companyId(),id,row.id());
         var result=saved(a.companyId(),id);event(a,id,"SAVED",result.version());return result;
     }
+    @Transactional(readOnly = true)
+    public AssignmentPlan planAssignment(AuthSessionUser actor, String listId, List<Long> contactIds, Filters filters) {
+        var user = access.read(actor);
+        require(MailingService.manager(user) && modules.companyCanAccessForMutation(user.companyId(),"crm"),
+            FORBIDDEN,"mailing_edit_forbidden");
+        long company = user.companyId();
+        var target = saved(company, listId);
+        List<Contact> candidates;
+        if (contactIds != null) {
+            candidates = resolve(company, contactIds);
+            require(!candidates.isEmpty(), BAD_REQUEST, "mailing_selection_invalid");
+            var args = new ArrayList<Object>();
+            args.add(company);
+            candidates.forEach(row -> args.add(row.id()));
+            long active = db.queryForObject("SELECT COUNT(*) FROM sales_contacts s WHERE s.company_id=? AND "
+                + VALID + " AND s.id IN (" + slots(candidates.size()) + ")", Long.class, args.toArray());
+            require(active == candidates.size(), BAD_REQUEST, "mailing_contact_unavailable");
+        } else {
+            var query = query(company, filters);
+            candidates = db.query("SELECT " + FIELDS + FROM + query.where() + " ORDER BY " + query.order()
+                + " LIMIT 501", MailingAudienceService::contact, query.args().toArray());
+            require(candidates.size() <= 500, CONFLICT, "mailing_selection_limit");
+        }
+        var members = new HashSet<>(db.queryForList(
+            "SELECT contact_id FROM sales_mailing_audience_members WHERE company_id=? AND list_id=?",
+            Long.class, company, listId));
+        var additions = candidates.stream().filter(row -> !members.contains(row.id()))
+            .map(row -> new AssignmentContact(row.id(), row.name(), row.companyName())).toList();
+        int projected = members.size() + additions.size();
+        require(projected <= 500, CONFLICT, "mailing_list_capacity_exceeded");
+        return new AssignmentPlan(target, new MemberAssignment(target.id(), target.version(),
+            additions.stream().map(AssignmentContact::id).toList()), additions,
+            candidates.size() - additions.size(), projected);
+    }
+
+    @Transactional
+    public SavedList applyAssignment(AuthSessionUser actor, MemberAssignment assignment) {
+        var user = write(actor);
+        var target = saved(user.companyId(), assignment.listId());
+        require(target.version() == assignment.version(), CONFLICT, "mailing_version_conflict");
+        if (assignment.contactIds().isEmpty()) return target;
+        return addMembers(user, target.id(), new ListInput(target.name(), assignment.contactIds(), target.version()));
+    }
+
+    @Transactional
+    public SavedList addMembers(AuthSessionUser actor, String id, ListInput input) {
+        var user = write(actor);
+        long company = user.companyId();
+        if (input.version() == 0) {
+            var existing = db.queryForList(
+                "SELECT id FROM sales_mailing_audience_lists WHERE company_id=? AND id=?",
+                String.class, company, id);
+            if (existing.isEmpty()) {
+                return save(user, id, input);
+            }
+        }
+
+        var list = saved(company, id);
+        var members = new HashSet<>(db.queryForList(
+            "SELECT contact_id FROM sales_mailing_audience_members WHERE company_id=? AND list_id=?",
+            Long.class, company, id));
+        var additions = new LinkedHashSet<>(input.contactIds());
+        additions.removeAll(members);
+        if (additions.isEmpty()) {
+            return list;
+        }
+        require(list.version() == input.version(), CONFLICT, "mailing_version_conflict");
+        require(members.size() + additions.size() <= 500, BAD_REQUEST, "mailing_selection_invalid");
+        for (long contactId : additions) {
+            int inserted = db.update("""
+                INSERT INTO sales_mailing_audience_members(company_id,list_id,contact_id)
+                SELECT s.company_id, ?, s.id FROM sales_contacts s
+                WHERE s.company_id=? AND s.id=? AND
+                """ + VALID, id, company, contactId);
+            require(inserted == 1, BAD_REQUEST, "mailing_contact_unavailable");
+        }
+        db.update("""
+            UPDATE sales_mailing_audience_lists
+            SET version=version+1, updated_by=?, updated_at=CURRENT_TIMESTAMP(6)
+            WHERE company_id=? AND id=?
+            """, user.userId(), company, id);
+        var result = saved(company, id);
+        event(user, id, "MEMBERS_ADDED", result.version());
+        return result;
+    }
+
     private void event(AuthSessionUser a,String id,String action,long version){db.update("INSERT INTO sales_mailing_audience_events(company_id,list_id,actor_user_id,action,version) VALUES(?,?,?,?,?)",a.companyId(),id,a.userId(),action,version);}
     @Transactional public void archive(AuthSessionUser actor,String id,long version) {var a=write(actor);var old=saved(a.companyId(),id);require(old.version()==version,CONFLICT,"mailing_version_conflict");db.update("UPDATE sales_mailing_audience_lists SET status='ARCHIVED',version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP(6) WHERE company_id=? AND id=?",a.userId(),a.companyId(),id);event(a,id,"ARCHIVED",version+1);}
     @Transactional(readOnly=true) public History history(AuthSessionUser actor,long contact,int page,int size) {

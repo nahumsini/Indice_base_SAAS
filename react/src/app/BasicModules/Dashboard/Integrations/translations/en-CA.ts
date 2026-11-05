@@ -179,6 +179,8 @@ export const enCA: IntegrationsTranslations = {
     'quotes.read': { label: 'Quotes', description: 'Read quotes, line items and totals.' },
     'commercial.references:read': { label: 'Commercial assignees', description: 'Identify active assignees within your scope.' },
     'customers.create': { label: 'Create customers', description: 'Create customers only after confirming the preview.' },
+    'mailing.lists.read': { label: 'Segmentation lists', description: 'Browse Mailing lists and filter options.' },
+    'mailing.lists.assign': { label: 'Assign contacts to lists', description: 'Add contacts to existing lists after reviewing and confirming a preview.' },
     'customers.update': { label: 'Edit customers', description: 'Edit customers only after confirming the preview.' },
     'opportunities.create': { label: 'Create opportunities', description: 'Create opportunities only after confirming the preview.' },
     'opportunities.update': { label: 'Edit opportunities', description: 'Edit opportunities only after confirming the preview.' },

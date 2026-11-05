@@ -13,6 +13,7 @@ import type { MailingContact } from "../mailingApi";
 import type { MailingCopy } from "../translations";
 import {
   audienceApi,
+  type AudienceList,
   type AudienceOptions,
   type AudiencePage,
   type AudienceSummary,
@@ -51,6 +52,8 @@ export function RecipientPicker({
 }) {
   const text = useAudienceCopy();
   const contactCopy = useContactosTranslations();
+  const spanish = contactCopy.table.columns.contact === "Contacto";
+
   const delivery = useDeliveryCopy();
   const filterCopy = useIndiceFilterDisclosureCopy();
   const [filters, setFilters] = useState(initialFilters);
@@ -65,8 +68,12 @@ export function RecipientPicker({
     owners: [],
     tags: [],
   });
+  const [filterLists, setFilterLists] = useState<AudienceList[]>([]);
+  const [matchingSelection, setMatchingSelection] = useState<{ key: string; count: number } | null>(null);
   const [summary, setSummary] = useState<AudienceSummary | null>(null);
   const [onlySelected, setOnlySelected] = useState(false);
+  const reviewingList = listMode && onlySelected;
+  const [showingLoadedMembers, setShowingLoadedMembers] = useState(false);
   const [loading, setLoading] = useState(true);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [error, setError] = useState("");
@@ -82,6 +89,29 @@ export function RecipientPicker({
     .map((row) => row.id)
     .sort((a, b) => a - b)
     .join(",");
+  const hasFilters = Object.values(filters).some(value => value && value !== "all");
+  const listVersions = filterLists.map(list => `${list.id}:${list.version}`).join(",");
+  const matchKey = `${query}:${selectionKey}:${refresh}:${listVersions}`;
+  useEffect(() => {
+    if (!listMode || onlySelected || !hasFilters || !selectionKey) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      void audienceApi.selectionMatch(query, selectionKey.split(",").map(Number), controller.signal)
+        .then(({ matching }) => {
+          if (!controller.signal.aborted) setMatchingSelection({ key: matchKey, count: matching });
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setMatchingSelection(null);
+        });
+    }, 300);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [listMode, onlySelected, hasFilters, query, selectionKey, matchKey]);
+
+  useEffect(() => {
+    if (filters.listId === "all" || filters.listId === "none" || filterLists.some(list => list.id === filters.listId)) return;
+    setFilters(current => ({ ...current, listId: "all" }));
+    setPage(1);
+  }, [filterLists, filters.listId]);
   useEffect(() => {
     const c = new AbortController();
     void audienceApi
@@ -117,7 +147,7 @@ export function RecipientPicker({
       clearTimeout(timer);
       c.abort();
     };
-  }, [query, page, size, refresh, text]);
+  }, [query, page, size, refresh, text, listVersions]);
   useEffect(() => {
     const c = new AbortController();
     setPreviewError("");
@@ -161,7 +191,7 @@ export function RecipientPicker({
     setPage(1);
     setOnlySelected(false);
   }
-  const activeAdvanced = [filters.source, filters.owner, filters.tag].filter(
+  const activeAdvanced = [filters.source, filters.tag, listMode ? filters.eligibility : filters.owner].filter(
     (v) => v !== "all",
   ).length;
   const ids = new Set(selected.map((row) => row.id));
@@ -210,20 +240,54 @@ export function RecipientPicker({
     { value: "all", label: text.all },
     ...values.map((value) => ({ value, label: value })),
   ];
-  return (
-    <div className="min-w-0 space-y-4 text-slate-900 dark:text-slate-100">
-      <AudienceLists
-        expanded={listMode}
-        readOnly={!canManageLists}
-        onLoad={listMode ? onChange : undefined}
-        selected={selected}
-        disabled={disabled}
-        onAdd={add}
-        onBusyChange={onBusyChange}
-      />
-      <IndiceFilterBar
+  const ownerFilter = (
+    <SalesFilterSelect
+      label={listMode && spanish ? "Colaborador responsable" : text.owner}
+      value={filters.owner}
+      onValueChange={(value) => filter("owner", value)}
+      options={[{ value: "all", label: text.all }, ...options.owners]}
+    />
+  );
+  const eligibilityFilter = (
+    <SalesFilterSelect
+      label={text.eligibility}
+      value={filters.eligibility}
+      onValueChange={(value) => filter("eligibility", value)}
+      options={[
+        { value: "all", label: text.all },
+        ...["READY", "INVALID", "SUPPRESSED"].map((value) => ({
+          value,
+          label: delivery.states[value as keyof typeof delivery.states],
+        })),
+      ]}
+    />
+  );
+  const outsideFilters = hasFilters && matchingSelection?.key === matchKey
+    ? Math.max(0, selected.length - matchingSelection.count)
+    : 0;
+  const directory = (
+    <div className="min-w-0 space-y-4">
+      {listMode && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">
+              {reviewingList ? (showingLoadedMembers ? (spanish ? "Integrantes de la lista" : "List members") : (spanish ? "Contactos seleccionados" : "Selected contacts")) : (spanish ? "Directorio de contactos" : "Contact directory")}
+            </h3>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              {reviewingList
+                ? (spanish ? "Revisa quién pertenece a la lista y quién está listo para recibir correos." : "Review list membership and sending eligibility.")
+                : (spanish ? "Busca y marca contactos para añadirlos a una lista." : "Find and select contacts to add to a list.")}
+            </p>
+          </div>
+          <Button variant="outline" type="button" disabled={disabled || (!reviewingList && !selected.length)}
+            onClick={() => { setOnlySelected(!onlySelected); setShowingLoadedMembers(false); setPage(1); }}>
+            {reviewingList ? (spanish ? "Buscar en el directorio" : "Browse directory") : `${text.selectedOnly} · ${selected.length}`}
+          </Button>
+        </div>
+      )}
+      {!reviewingList && <IndiceFilterBar
         title={text.filters}
-        gridClassName="grid-cols-1 md:grid-cols-2"
+        gridClassName={listMode ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2"}
         summary={
           <IndiceFilterDisclosureActions
             tone="coral"
@@ -233,11 +297,7 @@ export function RecipientPicker({
             onToggleAdvanced={() => setAdvanced((v) => !v)}
             advancedLabel={filterCopy.moreFilters}
             clearLabel={filterCopy.clearFilters}
-            hasActiveFilters={
-              filters.search !== "" ||
-              filters.eligibility !== "all" ||
-              activeAdvanced > 0
-            }
+            hasActiveFilters={hasFilters}
             onClear={() => {
               setFilters(initialFilters);
               setPage(1);
@@ -254,18 +314,18 @@ export function RecipientPicker({
           clearLabel={filterCopy.clearFilters}
           onClear={() => filter("search", "")}
         />
-        <SalesFilterSelect
-          label={text.eligibility}
-          value={filters.eligibility}
-          onValueChange={(value) => filter("eligibility", value)}
+        {!listMode && eligibilityFilter}
+        {listMode && ownerFilter}
+        {listMode && <SalesFilterSelect
+          label={contactCopy.table.columns.segmentationLists}
+          value={filters.listId}
+          onValueChange={(value) => filter("listId", value)}
           options={[
-            { value: "all", label: text.all },
-            ...["READY", "INVALID", "SUPPRESSED"].map((value) => ({
-              value,
-              label: delivery.states[value as keyof typeof delivery.states],
-            })),
+            { value: "all", label: spanish ? "Todas las listas" : "All lists" },
+            { value: "none", label: spanish ? "Sin lista" : "No list" },
+            ...filterLists.map(list => ({ value: list.id, label: list.name })),
           ]}
-        />
+        />}
         {advanced && (
           <>
             <SalesFilterSelect
@@ -283,12 +343,7 @@ export function RecipientPicker({
                 })),
               ]}
             />
-            <SalesFilterSelect
-              label={text.owner}
-              value={filters.owner}
-              onValueChange={(value) => filter("owner", value)}
-              options={[{ value: "all", label: text.all }, ...options.owners]}
-            />
+            {listMode ? eligibilityFilter : ownerFilter}
             <SalesFilterSelect
               label={text.tag}
               value={filters.tag}
@@ -297,7 +352,13 @@ export function RecipientPicker({
             />
           </>
         )}
-      </IndiceFilterBar>
+      </IndiceFilterBar>}
+      {listMode && !reviewingList && (
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-300" aria-live="polite">
+          {loading ? "…" : data?.total ?? "—"} {spanish ? "resultados" : "results"} · {selected.length} {text.selected.toLocaleLowerCase()}
+          {outsideFilters > 0 && ` · ${outsideFilters} ${spanish ? "fuera de los filtros" : "outside the filters"}`}
+        </p>
+      )}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" aria-live="polite">
         {[
           {
@@ -329,7 +390,7 @@ export function RecipientPicker({
       <p className="text-xs text-slate-500 dark:text-slate-400">
         {text.summaryHint}
       </p>
-      <div className="flex flex-wrap gap-2">
+      {!reviewingList && <div className="flex flex-wrap gap-2">
         <Button
           className="min-h-11"
           type="button"
@@ -348,7 +409,7 @@ export function RecipientPicker({
         >
           {text.selectResults}
         </Button>
-        <Button
+        {!listMode && <Button
           className="min-h-11"
           type="button"
           variant="outline"
@@ -359,7 +420,7 @@ export function RecipientPicker({
           }}
         >
           {onlySelected ? text.browse : text.selectedOnly} · {selected.length}
-        </Button>
+        </Button>}
         <Button
           className="min-h-11"
           type="button"
@@ -372,8 +433,8 @@ export function RecipientPicker({
         >
           {text.clear}
         </Button>
-      </div>
-      <p className="text-xs text-slate-500">{text.limit}</p>
+      </div>}
+      {!reviewingList && <p className="text-xs text-slate-500">{text.limit}</p>}
       {(error || previewError || actionError) && (
         <div
           role="alert"
@@ -426,4 +487,28 @@ export function RecipientPicker({
       )}
     </div>
   );
+  const lists = (
+    <AudienceLists
+        expanded={listMode}
+        onListsLoaded={listMode ? setFilterLists : undefined}
+        readOnly={!canManageLists}
+        onLoad={listMode ? rows => {
+          onChange(rows);
+          setOnlySelected(true);
+          setShowingLoadedMembers(true);
+          setPage(1);
+        } : undefined}
+        selected={selected}
+        disabled={disabled}
+        onAdd={add}
+        onBusyChange={onBusyChange}
+    >
+      {listMode ? directory : undefined}
+    </AudienceLists>
+  );
+  return <div className="min-w-0 space-y-4 text-slate-900 dark:text-slate-100">
+    {lists}
+    {!listMode && directory}
+  </div>;
+
 }

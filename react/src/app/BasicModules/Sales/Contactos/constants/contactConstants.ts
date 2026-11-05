@@ -6,11 +6,8 @@ export const defaultContactVisibleColumns: ContactColumnId[] = [
   'company',
   'phone',
   'email',
-  'source',
   'owner',
-  'relationship',
-  'fiscal',
-  'notes',
+  'segmentationLists',
 ];
 
 export const contactInputClassName = 'h-11 rounded-lg border-slate-200 bg-white text-slate-950 shadow-none focus:border-[#FF6B5E] focus:ring-[#FF6B5E]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white';

@@ -81,6 +81,10 @@ export default defineConfig(({ mode }) => {
             Origin: backendUrl,
           },
         },
+        '^/\\.well-known/(oauth-protected-resource|oauth-authorization-server|openid-configuration)$': {
+          target: backendUrl,
+          changeOrigin: true,
+        },
         '/storage': {
           target: storageUrl,
           changeOrigin: false,

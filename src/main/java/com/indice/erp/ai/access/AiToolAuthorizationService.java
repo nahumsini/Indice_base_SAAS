@@ -187,6 +187,14 @@ public class AiToolAuthorizationService {
             && (!"processes".equals(module) || processTasksAccessService.canAccess(user));
     }
 
+    public boolean canUseMailingLists(AuthSessionUser user, boolean assign) {
+        return canUseModuleCapability(user, "crm", "sales", TabPermissionRequirement.one("crm.mailing"))
+            && check(user, "tab", TabPermissionRequirement.one("crm.contacts"),
+                () -> tabPermissionAccessService.canAccess(user, TabPermissionRequirement.one("crm.contacts")))
+            && (!assign || (com.indice.erp.sales.mailing.MailingService.manager(user)
+                && moduleAccessService.companyCanAccessForMutation(user.companyId(), "crm")));
+    }
+
     public boolean canUseSalesWorkflowTool(AuthSessionUser user,String tool) {
         if(!com.indice.erp.sales.SalesWorkflowService.READS.contains(tool)&&!com.indice.erp.sales.SalesWorkflowService.ACTIONS.contains(tool))return false;
         String kind=com.indice.erp.sales.SalesWorkflowService.kind(tool);

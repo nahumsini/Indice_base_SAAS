@@ -55,12 +55,20 @@ export const audienceApi = {
     apiClient<AudienceOptions>(`${base}/audience/options`, { signal }),
   selection: (q: URLSearchParams, signal?: AbortSignal) =>
     apiClient<AudienceContact[]>(`${base}/audience/selection?${q}`, { signal }),
+  selectionMatch: (query: string, contactIds: number[], signal?: AbortSignal) =>
+    apiClient<{ matching: number }>(`${base}/audience/selection-match?${query}`, {
+      method: "POST",
+      body: JSON.stringify({ contactIds }),
+      signal,
+    }),
   preview: (contactIds: number[], signal?: AbortSignal) =>
     apiClient<AudienceSummary>(`${base}/audience/preview`, {
       method: "POST",
       body: JSON.stringify({ contactIds }),
       signal,
     }),
+  memberships: (signal?: AbortSignal) =>
+    apiClient<{ contactId: number; listId: string; name: string }[]>(`${base}/audience/memberships`, { signal }),
   lists: (signal?: AbortSignal) =>
     apiClient<AudienceList[]>(`${base}/audience/lists`, { signal }),
   list: (id: string) =>
@@ -74,6 +82,10 @@ export const audienceApi = {
       `${base}/audience/lists/${encodeURIComponent(id)}`,
       { method: "PUT", body: JSON.stringify({ name, contactIds, version }) },
     ),
+  addMembers: (id: string, name: string, contactIds: number[], version: number) =>
+    apiClient<AudienceList>(`${base}/audience/lists/${encodeURIComponent(id)}/members`, {
+      method: "POST", body: JSON.stringify({ name, contactIds, version }),
+    }),
   archive: (list: AudienceList) =>
     apiClient<void>(
       `${base}/audience/lists/${encodeURIComponent(list.id)}/archive`,

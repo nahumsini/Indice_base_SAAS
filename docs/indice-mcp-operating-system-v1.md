@@ -26,6 +26,20 @@ write scopes are opt-in and do not upgrade existing grants.
 Named actions continue to require current owner access, explicit consent and immutable confirmation.
 Real APPTEST and public release acceptance are separate from local implementation verification.
 
+### Mailing list assignment
+
+The Mailing tools are additive and use opt-in scopes. `list_mailing_lists` requires
+`mailing.lists.read`. `preview_assign_mailing_list_contacts` and
+`assign_mailing_list_contacts` require `mailing.lists.assign`, current Sales capability,
+Mailing and Contacts access, and the Mailing list manager role. Existing connections retain
+their grants. Mailing owns membership and the 500-member limit.
+
+Preview accepts explicit contact IDs or applies at least one filter to the full authorized
+directory. It freezes the target version and exact additions for five minutes. Commit accepts
+only the confirmation token and an idempotency key. A changed target requires fresh confirmation.
+Repeated execution returns the original result. The action appends memberships and records
+the change in the list and MCP audit histories.
+
 ## 1. Purpose
 
 The Indice MCP is a delegated business interface, not a database gateway and not a second business

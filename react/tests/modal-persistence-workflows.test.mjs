@@ -113,6 +113,7 @@ test('import modal blocks repeat submit and close, then keeps only failed contac
     if(id.endsWith('formFeedbackCopy'))return {getFormFeedbackCopy:()=>({saving:'Guardando',saveFailed:'No se pudo guardar'})};
     if(id.endsWith('salesModalStyles'))return {getSalesModalActionClassNames:()=>({})};
     if(id.endsWith('/utils'))return {cn:(...args)=>args.join(' ')};
+    if(id.endsWith('audienceApi'))return {audienceApi:{lists:async()=>[]}};
     if(id.endsWith('contactImportUtils'))return {parseContactFile:()=>drafts};
     return stub;
   });
@@ -121,7 +122,7 @@ test('import modal blocks repeat submit and close, then keeps only failed contac
   let ui=render();await elements(ui,'input')[0].props.onChange({target:{files:[{name:'fixture.csv',text:async()=> 'fixture'}]}});await runtime.flush();
   ui=render();const submit=ui.props.footer.props.children[1].props.onClick;submit();submit();
   assert.equal(calls,1);ui=render();assert.equal(ui.props.busy,true);ui.props.onOpenChange(false);assert.equal(closes,0);
-  resolveImport({imported:1,skipped:0,failed:[drafts[1]]});await runtime.flush();ui=render();
+  resolveImport({imported:1,skipped:0,failed:[drafts[1]],contactIds:[1]});await runtime.flush();ui=render();
   assert.equal(ui.props.busy,false);assert.ok(elements(ui,'p').some(item=>item.props.children==='Failed fixture'));
   assert.ok(!elements(ui,'p').some(item=>item.props.children==='Saved fixture'));
   assert.ok(elements(ui,'IndiceModalValidation').some(item=>item.props.messages?.includes('No se pudo guardar')));

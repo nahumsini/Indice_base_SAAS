@@ -15,9 +15,15 @@ public final class MailingAudienceContracts {
     public record Option(String value, String label) { }
     public record Options(List<String> sources, List<Option> owners, List<String> tags) { }
     public record Selection(@NotNull @Size(max=500) List<@NotNull @Positive Long> contactIds) { }
+    public record SelectionMatch(long matching) { }
     public record Summary(int selected, int ready, int consentRequired, int excluded, List<Contact> items) { }
     public record ListInput(@NotBlank @Size(max=180) String name,
         @NotNull @Size(min=1,max=500) List<@NotNull @Positive Long> contactIds, @Min(0) long version) { }
+    public record MemberAssignment(String listId, long version, List<Long> contactIds) { }
+    public record AssignmentContact(long id, String name, String companyName) { }
+    public record AssignmentPlan(SavedList list, MemberAssignment assignment,
+        List<AssignmentContact> additions, int alreadyInList, int projectedCount) { }
+    public record Membership(long contactId, String listId, String name) { }
     public record SavedList(String id, String name, long version, int contactCount, Instant updatedAt) { }
     public record ListDetail(SavedList list, List<Contact> items, int unavailable) { }
     public record Version(@Min(1) long version) { }

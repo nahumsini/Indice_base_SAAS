@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { audienceApi, type AudienceList } from '../../Mailing/audienceApi';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { CheckCircle2, FileUp, Smartphone, UploadCloud } from 'lucide-react';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
@@ -24,7 +25,11 @@ export function ImportContactsModal({
   isOpen,
   onOpenChange,
   onImportContacts,
+  initialListId,
+  onListSaved,
 }: {
+  initialListId?: string;
+  onListSaved?: (list: AudienceList) => void;
   copy: ContactCopy['importModal'];
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -42,6 +47,25 @@ export function ImportContactsModal({
   const [statusMessage, setStatusMessage] = useState('');
   const [isReadingContacts, setIsReadingContacts] = useState(false);
 
+  const spanish = currentLanguage.code.toLowerCase().startsWith('es');
+  const [lists, setLists] = useState<AudienceList[]>([]);
+  const [listsAvailable, setListsAvailable] = useState(false);
+  const [destination, setDestination] = useState(initialListId ?? '');
+  const [listName, setListName] = useState('');
+  const pendingAssignment = useRef<{ list: AudienceList; ids: number[]; result: ContactImportResult } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const controller = new AbortController();
+    setListsAvailable(false);
+    void audienceApi.lists(controller.signal).then(items => {
+      if (controller.signal.aborted) return;
+      setLists(items);
+      setListsAvailable(true);
+    }).catch(() => {});
+    return () => controller.abort();
+  }, [isOpen]);
+
   const canUseNativeContacts = useMemo(() => {
     if (typeof navigator === 'undefined') {
       return false;
@@ -51,6 +75,9 @@ export function ImportContactsModal({
 
   const resetModalState = () => {
     setDrafts([]);
+    setDestination('');
+    setListName('');
+    pendingAssignment.current = null;
     setStatusMessage('');
     setImportError('');
     setFailedNames([]);
@@ -122,15 +149,34 @@ export function ImportContactsModal({
     setStatusMessage('');
     setProgress(`0 / ${drafts.length}`);
     try {
-      const result = await onImportContacts(drafts, (done, total) => setProgress(`${done} / ${total}`));
-      setStatusMessage(copy.importResult(result.imported, result.skipped));
+      const target = destination === 'new'
+        ? { id: crypto.randomUUID(), name: listName.trim(), version: 0, contactCount: 0, updatedAt: '' }
+        : lists.find(list => list.id === destination);
+      const result = pendingAssignment.current?.result ??
+        await onImportContacts(drafts, (done, total) => setProgress(`${done} / ${total}`));
+      if (!pendingAssignment.current && target && result.contactIds.length) {
+        pendingAssignment.current = { list: target, ids: result.contactIds, result };
+      }
+      const pending = pendingAssignment.current;
+      let saved: AudienceList | undefined;
+      if (pending) {
+        saved = await audienceApi.addMembers(pending.list.id, pending.list.name, pending.ids, pending.list.version);
+        pendingAssignment.current = null;
+        const updated = saved;
+        setLists(items => [...items.filter(list => list.id !== updated.id), updated]);
+        setDestination(saved.id);
+        onListSaved?.(saved);
+      }
+      setStatusMessage([copy.importResult(result.imported, result.skipped), saved?.name].filter(Boolean).join(' · '));
       setDrafts(result.failed);
       if (result.failed.length) {
         setImportError(feedback.saveFailed);
         setFailedNames(result.failed.map(contact => contact.contactPerson || contact.company || contact.email || contact.phone));
       }
     } catch {
-      setImportError(feedback.saveFailed);
+      setImportError(pendingAssignment.current
+        ? (spanish ? 'Los contactos se procesaron. No se pudo actualizar la lista. Puedes reintentar la asignación.' : 'Contacts were processed. The list could not be updated. You can retry the assignment.')
+        : feedback.saveFailed);
     } finally {
       savingRef.current = false;
       setIsImporting(false);
@@ -163,7 +209,7 @@ export function ImportContactsModal({
           <Button
             className={importContactsActionClassNames.primary}
             onClick={() => void handleImportContacts()}
-            disabled={drafts.length === 0 || isReadingContacts || isImporting}
+            disabled={drafts.length === 0 || isReadingContacts || isImporting || (destination === 'new' && !listName.trim()) || (Boolean(destination) && (!listsAvailable || drafts.length > 500))}
           >
             {isImporting ? feedback.saving : copy.importContacts}
           </Button>
@@ -171,6 +217,25 @@ export function ImportContactsModal({
       )}
     >
           <IndiceModalValidation messages={importError ? [importError, ...failedNames] : []} />
+          {listsAvailable && (
+            <fieldset disabled={isImporting || Boolean(pendingAssignment.current)} className="grid gap-2 rounded-lg border bg-white p-4">
+              <label className="grid gap-2">
+                {spanish ? 'Lista de Mailing' : 'Mailing list'}
+                <select className="rounded-md border p-2" value={destination} onChange={event => setDestination(event.target.value)}>
+                  <option value="">{spanish ? 'Importar solo al directorio' : 'Import to directory only'}</option>
+                  {lists.map(list => <option key={list.id} value={list.id}>{list.name} ({list.contactCount}/500)</option>)}
+                  <option value="new">{spanish ? 'Crear lista' : 'Create list'}</option>
+                </select>
+              </label>
+              {destination === 'new' && (
+                <label className="grid gap-2">
+                  {spanish ? 'Nombre de la lista' : 'List name'}
+                  <input className="rounded-md border p-2" value={listName} maxLength={180} onChange={event => setListName(event.target.value)} />
+                </label>
+              )}
+              {destination && <p className="text-sm">{spanish ? 'Hasta 500 integrantes por lista.' : 'Up to 500 members per list.'}</p>}
+            </fieldset>
+          )}
           <section className="grid gap-3 md:grid-cols-2">
             <button
               type="button"
@@ -179,7 +244,7 @@ export function ImportContactsModal({
                 !canUseNativeContacts && 'opacity-70',
               )}
               onClick={handlePickNativeContacts}
-              disabled={!canUseNativeContacts || isReadingContacts || isImporting}
+              disabled={!canUseNativeContacts || isReadingContacts || isImporting || Boolean(pendingAssignment.current)}
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#FF6B5E] text-[#222831]">
                 <Smartphone className="h-5 w-5" />
@@ -197,7 +262,7 @@ export function ImportContactsModal({
               type="button"
               className="rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-[#FF6B5E]/35 hover:bg-slate-50"
               onClick={() => fileInputRef.current?.click()}
-              disabled={isReadingContacts || isImporting}
+              disabled={isReadingContacts || isImporting || Boolean(pendingAssignment.current)}
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#FF6B5E]/25 bg-[#FF6B5E]/10 text-[#B63B32]">
                 <FileUp className="h-5 w-5" />

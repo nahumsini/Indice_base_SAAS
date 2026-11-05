@@ -9,6 +9,9 @@ import { indiceToolNameSchema, type IndiceToolName } from "./contracts.js";
 
 /** Discovery metadata only. Spring remains the authority for every invocation. */
 export const toolScopes: Record<IndiceToolName, string> = {
+  list_mailing_lists: "mailing.lists.read",
+  preview_assign_mailing_list_contacts: "mailing.lists.assign",
+  assign_mailing_list_contacts: "mailing.lists.assign",
 "list_meetings":"meetings.read", "get_meeting":"meetings.read",
 "get_meeting_agreements":"meeting_agreements.read", "get_meeting_agreement_performance":"meeting_agreements.read",
 "preview_save_meeting_minutes":"meetings.manage", "save_meeting_minutes":"meetings.manage",
@@ -521,6 +524,7 @@ export function isRetryableRead(path: string, method: string): boolean {
   if (method === "GET") return ["/api/v1/ai/access/verify", "/api/v1/ai/access/capabilities",
     "/api/v1/ai/tools/sales/today", "/api/v1/ai/tools/business/snapshot", "/api/v1/ai/tools/references/business-context"].includes(pathname!);
   if (method !== "POST") return false;
+  if (pathname === "/api/v1/ai/tools/mailing_lists/list_mailing_lists") return true;
   if (["/api/v1/ai/tools/learning/guide", "/api/v1/ai/tools/learning/progress"].includes(pathname!)) return true;
   if (pathname === "/api/v1/ai/tools/kpis/get_hr_kpis") return true;
   if (pathname === "/api/v1/ai/tools/kpis/get_process_task_kpis") return true;

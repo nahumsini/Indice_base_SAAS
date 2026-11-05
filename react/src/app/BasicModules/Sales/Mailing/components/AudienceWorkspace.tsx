@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Users } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { SalesModalFrame } from "../../components/SalesModalFrame";
+import { AudienceLists } from "./AudienceLists";
 import { RecipientPicker } from "./RecipientPicker";
 import type { MailingContact } from "../mailingApi";
 import { useDeliveryCopy } from "../deliveryCopy";
@@ -10,8 +11,14 @@ import { useMailingWorkspaceCopy } from "../workspaceCopy";
 export function AudienceWorkspace({
   canManage,
   onClose,
+  title,
+  assignment,
+  onAssignmentSaved,
 }: {
   canManage: boolean;
+  title?: string;
+  assignment?: MailingContact[];
+  onAssignmentSaved?: () => void;
   onClose: () => void;
 }) {
   const { copy } = useMailingCopy(),
@@ -31,8 +38,8 @@ export function AudienceWorkspace({
       open
       modalType={discard ? "confirmation" : "operational-workspace"}
       busy={busy}
-      title={discard ? text.discardSelection : text.lists}
-      description={discard ? text.discardHint : text.listsHint}
+      title={discard ? text.discardSelection : title ?? text.lists}
+      description={discard ? text.discardHint : assignment ? undefined : text.listsHint}
       icon={<Users className="h-5 w-5" />}
       closeLabel={deliveryCopy.close}
       onOpenChange={(open) => {
@@ -55,7 +62,18 @@ export function AudienceWorkspace({
       }
     >
       <div hidden={discard}>
-        <RecipientPicker
+        {assignment ? (
+          <AudienceLists
+            expanded
+            assigning
+            selected={assignment}
+            readOnly={!canManage}
+            disabled={busy}
+            onAdd={setSelected}
+            onBusyChange={setBusy}
+            onAssignmentSaved={onAssignmentSaved}
+          />
+        ) : <RecipientPicker
           copy={copy}
           selected={selected}
           onChange={setSelected}
@@ -63,7 +81,7 @@ export function AudienceWorkspace({
           onBusyChange={setBusy}
           listMode
           canManageLists={canManage}
-        />
+        />}
       </div>
     </SalesModalFrame>
   );
