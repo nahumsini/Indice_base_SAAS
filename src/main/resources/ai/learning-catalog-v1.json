@@ -1,6 +1,6 @@
 {
   "version": "2026-10-23.v1",
-  "sourceDigest": "4c35c2bc702ced8126f788fb9eb6606eeb2e46614211ce76ce3f9328dfc6f25c",
+  "sourceDigest": "fddf383f436b1046390dfeeda641916eb40691b993413a9e4a76c5bd22aabc98",
   "modules": [
     {
       "module": "ideas_board",
@@ -574,7 +574,7 @@
           "purpose": "Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña. Si falta verificar SMTP, abre la configuración de la cuenta y actualiza la revisión al regresar.",
           "effect": "Completa asunto y mensaje para revisar o probar; el envío de campaña también requiere los datos del remitente. Revisa el formato y las imágenes antes de confirmar. Consulta resultados y respeta las bajas. En espera de cupo indica que los pendientes continúan automáticamente al liberarse el límite de la cuenta. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.",
           "chapterId": "crm.mailing",
-          "version": 5,
+          "version": 6,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -587,11 +587,16 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Elige Escribir desde cero o Usar plantilla; cambiar de opción conserva el borrador y Aplicar plantilla reemplaza el contenido. Completa las variables pendientes, conserva {{name}} para cada destinatario y usa Insertar imagen para el cuerpo. Espera a que terminen las imágenes y adjuntos antes de guardar y revisar destinatarios, exclusiones y configuración."
+              "description": "En Listas de destinatarios, filtra por colaborador o lista e importa a un destino elegido. En ChatGPT, revisa y confirma las altas propuestas si la conexión tiene permiso de asignación."
             },
             {
               "id": "verify",
               "title": "Comprueba el resultado",
+              "description": "Elige Escribir desde cero o Usar plantilla; cambiar de opción conserva el borrador y Aplicar plantilla reemplaza el contenido. Completa las variables pendientes, conserva {{name}} para cada destinatario y usa Insertar imagen para el cuerpo. Espera a que terminen las imágenes y adjuntos antes de guardar y revisar destinatarios, exclusiones y configuración."
+            },
+            {
+              "id": "detail-3",
+              "title": "Detalle",
               "description": "Completa asunto y mensaje para revisar o probar; el envío de campaña también requiere los datos del remitente. Revisa el formato y las imágenes antes de confirmar. Consulta resultados y respeta las bajas. En espera de cupo indica que los pendientes continúan automáticamente al liberarse el límite de la cuenta. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña."
             }
           ]
@@ -690,7 +695,7 @@
           "purpose": "Busca primero al cliente; revisa contacto, empresa, responsable y alcance.",
           "effect": "Relaciona oportunidades y cotizaciones con la misma identidad; un contacto no es una venta ni un ingreso.",
           "chapterId": "crm.contacts",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [
@@ -706,7 +711,7 @@
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "Crea, edita o importa contactos y usa los canales de comunicación disponibles."
+              "description": "Crea, edita o importa contactos. Filtra por responsable o lista, selecciona contactos y usa Añadir a una lista para elegir el destino."
             },
             {
               "id": "verify",
@@ -3489,7 +3494,7 @@
           "purpose": "Select a verified sender account and Sales contacts or lists for the campaign. If SMTP verification is pending, open account settings and refresh the review when you return.",
           "effect": "Complete subject and message before review or testing; campaign launch also requires sender details. Review formatting and images before confirming. Check outcomes and respect opt-outs. Waiting for capacity means pending deliveries resume automatically when account capacity becomes available. SMTP acceptance does not mean read or delivered; a test does not launch the campaign.",
           "chapterId": "crm.mailing",
-          "version": 5,
+          "version": 6,
           "journey": true,
           "companion": true,
           "evidenceTools": [],
@@ -3502,11 +3507,16 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Choose Write from scratch or Use a template; switching options keeps the draft and Apply template replaces its content. Complete pending variables, retain {{name}} for each recipient and use Insert image for the body. Wait for images and attachments to finish before saving and reviewing recipients, exclusions and settings."
+              "description": "In Recipient lists, filter by owner or list and import into a chosen destination. In ChatGPT, review and confirm proposed additions when the connection has assignment permission."
             },
             {
               "id": "verify",
               "title": "Verify the result",
+              "description": "Choose Write from scratch or Use a template; switching options keeps the draft and Apply template replaces its content. Complete pending variables, retain {{name}} for each recipient and use Insert image for the body. Wait for images and attachments to finish before saving and reviewing recipients, exclusions and settings."
+            },
+            {
+              "id": "detail-3",
+              "title": "Detail",
               "description": "Complete subject and message before review or testing; campaign launch also requires sender details. Review formatting and images before confirming. Check outcomes and respect opt-outs. Waiting for capacity means pending deliveries resume automatically when account capacity becomes available. SMTP acceptance does not mean read or delivered; a test does not launch the campaign."
             }
           ]
@@ -3605,7 +3615,7 @@
           "purpose": "Search for the customer first; review contact details, company, owner and scope.",
           "effect": "Link opportunities and quotations to the same identity; a contact is neither a sale nor revenue.",
           "chapterId": "crm.contacts",
-          "version": 2,
+          "version": 3,
           "journey": true,
           "companion": true,
           "evidenceTools": [
@@ -3621,7 +3631,7 @@
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "Create, edit or import contacts and use available communication channels."
+              "description": "Create, edit or import contacts. Filter by owner or list, select contacts, and use Add to a list to choose the destination."
             },
             {
               "id": "verify",

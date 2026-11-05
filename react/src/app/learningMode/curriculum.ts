@@ -33,7 +33,8 @@ function chapter(module: string, tab: string, label: LearningText, steps: readon
     : module === 'ideas_board' && ['canvas','system'].includes(tab) ? 4
     : ['correo.mail', 'control_minutas.meetings'].includes(`${module}.${tab}`) ? 4
     : module === 'crm' && tab === 'funneling' ? 6
-    : module === 'crm' && tab === 'mailing' ? 5
+    : module === 'crm' && tab === 'mailing' ? 6
+    : module === 'crm' && tab === 'contacts' ? 3
     : module === 'human_resources' && tab === 'collaborators' ? 4
     : module === 'human_resources' && tab === 'payroll' ? 3
     : module === 'config_center' && tab === 'users' ? 3
@@ -139,6 +140,7 @@ export const learningChapters: readonly LearningChapter[] = [
   ]),
   chapter("crm", "mailing", ["Campañas de correo","Email campaigns"], [
     ["Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña. Si falta verificar SMTP, abre la configuración de la cuenta y actualiza la revisión al regresar.","Select a verified sender account and Sales contacts or lists for the campaign. If SMTP verification is pending, open account settings and refresh the review when you return."],
+    ["En Listas de destinatarios, filtra por colaborador o lista e importa a un destino elegido. En ChatGPT, revisa y confirma las altas propuestas si la conexión tiene permiso de asignación.","In Recipient lists, filter by owner or list and import into a chosen destination. In ChatGPT, review and confirm proposed additions when the connection has assignment permission."],
     ["Elige Escribir desde cero o Usar plantilla; cambiar de opción conserva el borrador y Aplicar plantilla reemplaza el contenido. Completa las variables pendientes, conserva {{name}} para cada destinatario y usa Insertar imagen para el cuerpo. Espera a que terminen las imágenes y adjuntos antes de guardar y revisar destinatarios, exclusiones y configuración.","Choose Write from scratch or Use a template; switching options keeps the draft and Apply template replaces its content. Complete pending variables, retain {{name}} for each recipient and use Insert image for the body. Wait for images and attachments to finish before saving and reviewing recipients, exclusions and settings."],
     ["Completa asunto y mensaje para revisar o probar; el envío de campaña también requiere los datos del remitente. Revisa el formato y las imágenes antes de confirmar. Consulta resultados y respeta las bajas. En espera de cupo indica que los pendientes continúan automáticamente al liberarse el límite de la cuenta. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.","Complete subject and message before review or testing; campaign launch also requires sender details. Review formatting and images before confirming. Check outcomes and respect opt-outs. Waiting for capacity means pending deliveries resume automatically when account capacity becomes available. SMTP acceptance does not mean read or delivered; a test does not launch the campaign."],
   ]),
@@ -414,7 +416,7 @@ export const learningChapters: readonly LearningChapter[] = [
   ], ['create_inventory_discount', 'update_inventory_discount']),
   chapter('crm', 'contacts', ['Contactos y clientes', 'Contacts and customers'], [
     ['Busca primero al cliente; revisa contacto, empresa, responsable y alcance.', 'Search for the customer first; review contact details, company, owner and scope.'],
-    ['Crea, edita o importa contactos y usa los canales de comunicación disponibles.', 'Create, edit or import contacts and use available communication channels.'],
+    ['Crea, edita o importa contactos. Filtra por responsable o lista, selecciona contactos y usa Añadir a una lista para elegir el destino.', 'Create, edit or import contacts. Filter by owner or list, select contacts, and use Add to a list to choose the destination.'],
     ['Relaciona oportunidades y cotizaciones con la misma identidad; un contacto no es una venta ni un ingreso.', 'Link opportunities and quotations to the same identity; a contact is neither a sale nor revenue.'],
   ], ['create_customer', 'update_customer']),
   chapter('crm', 'leads', ['Oportunidades y flujos comerciales', 'Opportunities and commercial flows'], [

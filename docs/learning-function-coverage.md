@@ -22,7 +22,7 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | maintenance.configuration | 3 | maintenance/configuration | 2 | Understanding only until an owner completion is integrated |
 | crm.after-sales | 5 | sales/after-sales | 2 | Understanding only until an owner completion is integrated |
 | crm.funneling | 5 | sales/funneling | 6 | Understanding only until an owner completion is integrated |
-| crm.mailing | 5 | sales/mailing | 5 | Understanding only until an owner completion is integrated |
+| crm.mailing | 5 | sales/mailing | 6 | Understanding only until an owner completion is integrated |
 | crm.whatsapping | 5 | sales/whatsapping | 2 | Understanding only until an owner completion is integrated |
 | crm.conversations | 5 | sales/conversations | 2 | Understanding only until an owner completion is integrated |
 | crm.whatsapp-settings | 5 | sales/whatsapp-settings | 2 | Understanding only until an owner completion is integrated |
@@ -77,7 +77,7 @@ Generated from the reviewed bilingual curriculum. Domain owners remain authorita
 | inventory.providers | 5 | inventory/providers | 2 | create_inventory_provider, update_inventory_provider, save_product_supplier |
 | inventory.purchase-orders | 5 | inventory/purchase-orders | 2 | create_purchase_order, receive_purchase_order, submit_supplier_invoice |
 | inventory.discounts | 5 | inventory/discounts | 2 | create_inventory_discount, update_inventory_discount |
-| crm.contacts | 5 | sales/contacts | 2 | create_customer, update_customer |
+| crm.contacts | 5 | sales/contacts | 3 | create_customer, update_customer |
 | crm.leads | 5 | sales/leads | 2 | create_opportunity, update_opportunity |
 | crm.quotes | 5 | sales/quotes | 2 | create_quote, update_quote, create_commercial_sale |
 | crm.sales | 5 | sales/sales | 2 | create_commercial_sale, update_commercial_sale, confirm_sale_collection |
