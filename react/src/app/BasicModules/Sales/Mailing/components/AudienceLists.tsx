@@ -115,7 +115,7 @@ export function AudienceLists({
       <div className="space-y-3">
         {expanded ? (
           <div>
-            <h3 className="text-lg font-semibold">{active?.name ?? (spanish ? "Listas de segmentación" : "Segmentation lists")}</h3>
+            <h3 className="text-lg font-medium">{active?.name ?? (spanish ? "Listas de segmentación" : "Segmentation lists")}</h3>
             {active && <p className="text-sm text-slate-600 dark:text-slate-300">
               {active.contactCount} {spanish ? "integrantes en la lista" : "members in this list"}
             </p>}

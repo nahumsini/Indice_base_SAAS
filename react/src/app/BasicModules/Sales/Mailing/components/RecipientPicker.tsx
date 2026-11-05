@@ -270,7 +270,7 @@ export function RecipientPicker({
       {listMode && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-semibold">
+            <h3 className="font-medium">
               {reviewingList ? (showingLoadedMembers ? (spanish ? "Integrantes de la lista" : "List members") : (spanish ? "Contactos seleccionados" : "Selected contacts")) : (spanish ? "Directorio de contactos" : "Contact directory")}
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-300">

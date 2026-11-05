@@ -747,7 +747,7 @@ export default function Contactos({ learningModeActive = false, titleBarTitle }:
       {assignmentSaved && <p role="status" className="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{labels.saved}</p>}
       {canAssign && selectedContacts.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#FF6B5E]/25 bg-[#FF6B5E]/5 p-3">
-          <span className="mr-auto px-1 text-sm font-semibold" aria-live="polite">{selectedContacts.length} {labels.selected}</span>
+          <span className="mr-auto px-1 text-sm font-medium" aria-live="polite">{selectedContacts.length} {labels.selected}</span>
           <Button type="button" variant="outline" disabled={!filteredIds.length} onClick={() => updateSelection(filteredIds)}>
             {labels.selectResults} ({filteredIds.length})
           </Button>

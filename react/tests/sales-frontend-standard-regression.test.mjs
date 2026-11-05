@@ -644,7 +644,7 @@ test('Oportunidades distingue el flujo activo de las acciones y conserva Columna
   assert.match(opportunitiesHeaderSource, /id: 'create-sale'[\s\S]*onSelect: onCreateSale/);
 
   assert.match(contactsSource, /onClick=\{\(\) => setIsImportModalOpen\(true\)\}/);
-  assert.match(contactsSource, /onClick=\{\(\) => setIsMetaImportModalOpen\(true\)\}/);
+  assert.match(contactsSource, /<IndiceTitleBarOverflow[\s\S]*id: 'meta-import'[\s\S]*onSelect: \(\) => setIsMetaImportModalOpen\(true\)/);
   assert.match(contactsSource, /onClick=\{handleOpenCreateContact\}/);
   assert.doesNotMatch(contactsSource, /onClick=\{\(\) => setIsColumnsModalOpen\(true\)\}/);
   assert.match(contactsSource, /<IndiceTitleBarOverflow[\s\S]*id: 'columns'[\s\S]*onSelect: \(\) => setIsColumnsModalOpen\(true\)/);
