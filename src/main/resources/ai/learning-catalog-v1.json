@@ -1,6 +1,6 @@
 {
   "version": "2026-10-23.v1",
-  "sourceDigest": "fddf383f436b1046390dfeeda641916eb40691b993413a9e4a76c5bd22aabc98",
+  "sourceDigest": "e67be3199bde4cb81982035cab170daf378f9b473fac89f44ddd0a4f8f14a3d3",
   "modules": [
     {
       "module": "ideas_board",
@@ -571,7 +571,7 @@
           "tab": "mailing",
           "label": "Campañas de correo",
           "title": "Campañas de correo",
-          "purpose": "Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña. Si falta verificar SMTP, abre la configuración de la cuenta y actualiza la revisión al regresar.",
+          "purpose": "Selecciona una cuenta remitente verificada. En Listas de destinatarios, filtra por colaborador o lista e importa a un destino elegido. En ChatGPT, revisa y confirma las altas propuestas si la conexión tiene permiso de asignación.",
           "effect": "Completa asunto y mensaje para revisar o probar; el envío de campaña también requiere los datos del remitente. Revisa el formato y las imágenes antes de confirmar. Consulta resultados y respeta las bajas. En espera de cupo indica que los pendientes continúan automáticamente al liberarse el límite de la cuenta. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña.",
           "chapterId": "crm.mailing",
           "version": 6,
@@ -582,21 +582,16 @@
             {
               "id": "prepare",
               "title": "Antes de empezar",
-              "description": "Selecciona una cuenta remitente verificada y los contactos o listas de Ventas para la campaña. Si falta verificar SMTP, abre la configuración de la cuenta y actualiza la revisión al regresar."
+              "description": "Selecciona una cuenta remitente verificada. En Listas de destinatarios, filtra por colaborador o lista e importa a un destino elegido. En ChatGPT, revisa y confirma las altas propuestas si la conexión tiene permiso de asignación."
             },
             {
               "id": "operate",
               "title": "Realiza la operación",
-              "description": "En Listas de destinatarios, filtra por colaborador o lista e importa a un destino elegido. En ChatGPT, revisa y confirma las altas propuestas si la conexión tiene permiso de asignación."
+              "description": "Elige Escribir desde cero o Usar plantilla; cambiar de opción conserva el borrador y Aplicar plantilla reemplaza el contenido. Completa las variables pendientes, conserva {{name}} para cada destinatario y usa Insertar imagen para el cuerpo. Espera a que terminen las imágenes y adjuntos antes de guardar y revisar destinatarios, exclusiones y configuración."
             },
             {
               "id": "verify",
               "title": "Comprueba el resultado",
-              "description": "Elige Escribir desde cero o Usar plantilla; cambiar de opción conserva el borrador y Aplicar plantilla reemplaza el contenido. Completa las variables pendientes, conserva {{name}} para cada destinatario y usa Insertar imagen para el cuerpo. Espera a que terminen las imágenes y adjuntos antes de guardar y revisar destinatarios, exclusiones y configuración."
-            },
-            {
-              "id": "detail-3",
-              "title": "Detalle",
               "description": "Completa asunto y mensaje para revisar o probar; el envío de campaña también requiere los datos del remitente. Revisa el formato y las imágenes antes de confirmar. Consulta resultados y respeta las bajas. En espera de cupo indica que los pendientes continúan automáticamente al liberarse el límite de la cuenta. Aceptado por SMTP no significa leído o entregado; una prueba no lanza la campaña."
             }
           ]
@@ -3491,7 +3486,7 @@
           "tab": "mailing",
           "label": "Email campaigns",
           "title": "Email campaigns",
-          "purpose": "Select a verified sender account and Sales contacts or lists for the campaign. If SMTP verification is pending, open account settings and refresh the review when you return.",
+          "purpose": "Select a verified sender account. In Recipient lists, filter by owner or list and import into a chosen destination. In ChatGPT, review and confirm proposed additions when the connection has assignment permission.",
           "effect": "Complete subject and message before review or testing; campaign launch also requires sender details. Review formatting and images before confirming. Check outcomes and respect opt-outs. Waiting for capacity means pending deliveries resume automatically when account capacity becomes available. SMTP acceptance does not mean read or delivered; a test does not launch the campaign.",
           "chapterId": "crm.mailing",
           "version": 6,
@@ -3502,21 +3497,16 @@
             {
               "id": "prepare",
               "title": "Before starting",
-              "description": "Select a verified sender account and Sales contacts or lists for the campaign. If SMTP verification is pending, open account settings and refresh the review when you return."
+              "description": "Select a verified sender account. In Recipient lists, filter by owner or list and import into a chosen destination. In ChatGPT, review and confirm proposed additions when the connection has assignment permission."
             },
             {
               "id": "operate",
               "title": "Perform the operation",
-              "description": "In Recipient lists, filter by owner or list and import into a chosen destination. In ChatGPT, review and confirm proposed additions when the connection has assignment permission."
+              "description": "Choose Write from scratch or Use a template; switching options keeps the draft and Apply template replaces its content. Complete pending variables, retain {{name}} for each recipient and use Insert image for the body. Wait for images and attachments to finish before saving and reviewing recipients, exclusions and settings."
             },
             {
               "id": "verify",
               "title": "Verify the result",
-              "description": "Choose Write from scratch or Use a template; switching options keeps the draft and Apply template replaces its content. Complete pending variables, retain {{name}} for each recipient and use Insert image for the body. Wait for images and attachments to finish before saving and reviewing recipients, exclusions and settings."
-            },
-            {
-              "id": "detail-3",
-              "title": "Detail",
               "description": "Complete subject and message before review or testing; campaign launch also requires sender details. Review formatting and images before confirming. Check outcomes and respect opt-outs. Waiting for capacity means pending deliveries resume automatically when account capacity becomes available. SMTP acceptance does not mean read or delivered; a test does not launch the campaign."
             }
           ]
