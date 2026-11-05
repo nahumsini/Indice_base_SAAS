@@ -43,14 +43,14 @@ public class SalesAssistantService {
                 .anyMatch(flow -> selectedFlowId.equals(flow.id()));
             if (!activeFlow) throw new NoSuchElementException("Active flow not found.");
         }
-        var binding = hash(List.of(kind, user.companyId(), scope, Arrays.asList(
+        var binding = hash(List.of(kind, user.companyId(), scopeBinding(user, scope), Arrays.asList(
             query.query(), query.status(), query.stage(), query.customerId(),
             query.ownerUserCompanyId(), query.flowId(), limit)));
         int offset = offset(query.cursor(), binding);
         var page = repository.page(user, scope, kind, query, offset, limit);
         var rows = page.ids().stream().map(id -> view(kind, sales.get(user.companyId(), repository.collection(kind), id))).toList();
         boolean more = offset + rows.size() < page.total();
-        return new Page<>(rows, page.total(), more, more ? cursor(offset + rows.size(), binding) : null, scope.type().name());
+        return new Page<>(rows, page.total(), more, more ? cursor(offset + rows.size(), binding) : null, scopeName(scope));
     }
 
     @Transactional(readOnly = true)
@@ -59,12 +59,12 @@ public class SalesAssistantService {
         var scope = scope(user);
         int limit = query.limit() == null ? 20 : query.limit();
         if (limit < 1 || limit > 50 || (query.query() != null && query.query().length() > 120)) throw new IllegalArgumentException("Invalid page.");
-        var binding = hash(Arrays.asList("assignees", user.companyId(), scope, query.query(), limit));
+        var binding = hash(Arrays.asList("assignees", user.companyId(), scopeBinding(user, scope), query.query(), limit));
         int offset = offset(query.cursor(), binding);
         var page = repository.assignees(user, scope, query.query(), null, offset, limit);
         int end = offset + page.items().size();
         boolean more = end < page.totalCount();
-        return new Page<>(page.items(), page.totalCount(), more, more ? cursor(end, binding) : null, scope.type().name());
+        return new Page<>(page.items(), page.totalCount(), more, more ? cursor(end, binding) : null, scopeName(scope));
     }
 
     @Transactional(readOnly = true)
@@ -78,7 +78,7 @@ public class SalesAssistantService {
         var catalog = flows.assistantFlows(user.companyId());
         var selected = catalog.stream().filter(flow -> flowId == null ? flow.defaultFlow() : flowId.equals(flow.id())).findFirst()
             .orElseThrow(() -> new NoSuchElementException("Active flow not found."));
-        return new Pipeline(selected.id(), catalog, repository.pipeline(user, scope, selected), scope.type().name());
+        return new Pipeline(selected.id(), catalog, repository.pipeline(user, scope, selected), scopeName(scope));
     }
 
     @Transactional(readOnly = true)
@@ -230,9 +230,13 @@ public class SalesAssistantService {
     }
     private HrOperationalScope scope(AuthSessionUser user) {
         if (user.userCompanyId() == null) throw new SecurityException("Active company membership required.");
-        var scope = scopes.resolve(user);
-        if (scope.type() == HrOperationalScope.Type.UNASSIGNED) throw new SecurityException("Organizational scope required.");
-        return scope;
+        return scopes.resolve(user);
+    }
+    private static String scopeName(HrOperationalScope scope) {
+        return scope.type() == HrOperationalScope.Type.UNASSIGNED ? "SELF" : scope.type().name();
+    }
+    private static Object scopeBinding(AuthSessionUser user, HrOperationalScope scope) {
+        return scope.type() == HrOperationalScope.Type.UNASSIGNED ? List.of("SELF", user.userCompanyId()) : scope;
     }
     private String hash(Object value) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(mapper.writeValueAsBytes(value))); }

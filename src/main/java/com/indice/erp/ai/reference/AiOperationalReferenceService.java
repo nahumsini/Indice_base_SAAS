@@ -45,8 +45,9 @@ public class AiOperationalReferenceService {
         require(authorization.canReadCustomers(user));
         var page = AiReferencePages.normalize(request);
         var scope = scopes.resolve(user);
-        var result = sales.customers(user.companyId(), scope, page.query(), page.offset(), page.limit());
-        return AiReferencePages.page(clock, scope.type().name(), result.items(), result.totalCount(), page);
+        var result = sales.customers(user, scope, page.query(), page.offset(), page.limit());
+        String label = scope.type() == com.indice.erp.hr.HrOperationalScope.Type.UNASSIGNED ? "SELF" : scope.type().name();
+        return AiReferencePages.page(clock, label, result.items(), result.totalCount(), page);
     }
 
     public ReferencePage<SalesReferenceReadService.Warehouse> warehouses(AuthSessionUser user, PageRequest request) {

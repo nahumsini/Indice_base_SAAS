@@ -1,6 +1,7 @@
 package com.indice.erp.sales;
 
 import com.indice.erp.hr.HrOperationalScope;
+import com.indice.erp.auth.AuthSessionUser;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,13 @@ public class SalesReferenceReadService {
     public Page<Customer> customers(long companyId, HrOperationalScope scope, String query, int offset, int limit) {
         validate(offset, limit);
         return repository.customers(companyId, scope, query, offset, limit);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Customer> customers(AuthSessionUser user, HrOperationalScope scope, String query, int offset, int limit) {
+        validate(offset, limit);
+        if (user.userCompanyId() == null) throw new SecurityException("Active company membership required.");
+        return repository.customers(user.companyId(), user.userCompanyId(), scope, query, offset, limit);
     }
 
     @Transactional(readOnly = true)

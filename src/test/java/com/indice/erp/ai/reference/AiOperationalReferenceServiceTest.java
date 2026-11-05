@@ -71,8 +71,8 @@ class AiOperationalReferenceServiceTest {
         var scope = HrOperationalScope.businessOffice(10L, 101L);
         when(scopes.resolve(USER)).thenReturn(scope);
         var customer = new SalesReferenceReadService.Customer(7L, "CON7", "Shop", "active", 10L, 101L);
-        when(sales.customers(23L, scope, "shop", 0, 1)).thenReturn(new SalesReferenceReadService.Page<>(List.of(customer), 2));
-        when(sales.customers(23L, scope, "shop", 1, 1)).thenReturn(new SalesReferenceReadService.Page<>(List.of(customer), 2));
+        when(sales.customers(USER, scope, "shop", 0, 1)).thenReturn(new SalesReferenceReadService.Page<>(List.of(customer), 2));
+        when(sales.customers(USER, scope, "shop", 1, 1)).thenReturn(new SalesReferenceReadService.Page<>(List.of(customer), 2));
         when(sales.warehouses(23L, scope, "", 0, 25)).thenReturn(new SalesReferenceReadService.Page<>(List.of(), 0));
         var first = service.customers(USER, new PageRequest(" Shop ", 1, null));
         var second = service.customers(USER, new PageRequest("Shop", 1, first.nextCursor()));

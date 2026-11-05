@@ -92,3 +92,12 @@ test("commercial HTTP preserves requested fields, validates response and never r
   assert.equal(attempts, 1);
   for (const [name, definition] of Object.entries(commercialTools)) assert.equal(isRetryableRead(`/api/v1/ai/tools/commercial/${name}`, "POST"), definition.mode === "read");
 });
+
+test("commercial permission failures explain access without exposing backend details", async () => {
+  for (const body of [{ message: "private SQL detail" }, "private SQL detail"]) {
+    const client = new IndiceClient(config, (async () => Response.json(body,
+      { status: 403 })) as typeof fetch);
+    await assert.rejects(() => client.commercial("list_opportunities", {}), error => error instanceof Error
+      && error.message.includes("permisos de Ventas") && !error.message.includes("private SQL"));
+  }
+});

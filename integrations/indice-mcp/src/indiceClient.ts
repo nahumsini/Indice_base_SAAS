@@ -333,7 +333,12 @@ export class IndiceClient {
       method: "POST", headers: { Authorization: `Bearer ${this.requireDelegatedToken()}`, "Content-Type": "application/json" },
       body: JSON.stringify(request)
     });
-    if (!response.ok) throw await this.apiError(response, "Unable to complete the commercial operation.");
+    if (!response.ok) {
+      if (response.status === 403) {
+        throw new IndiceApiError("Índice no autorizó esta operación comercial. Revisa los permisos de Ventas y la asignación del registro a tu cartera o alcance organizacional.", 403);
+      }
+      throw await this.apiError(response, "Unable to complete the commercial operation.");
+    }
     const parsed = definition.output.safeParse(await response.json());
     if (!parsed.success) throw new IndiceApiError("Indice returned an invalid commercial contract.");
     return parsed.data;

@@ -23,7 +23,7 @@ class SalesAssistantRepository {
     void requireRecord(AuthSessionUser user, HrOperationalScope scope, String kind, long id, boolean lock) {
         var args = new ArrayList<Object>(List.of(user.companyId(), id));
         var sql = "SELECT e.id FROM " + table(kind) + " e WHERE e.company_id = ? AND e.id = ? AND e.deleted_at IS NULL"
-            + scopeSql(kind, scope, args) + (lock ? " FOR UPDATE" : "");
+            + scopeSql(user, kind, scope, args) + (lock ? " FOR UPDATE" : "");
         if (jdbc.queryForList(sql, Long.class, args.toArray()).isEmpty()) throw new NoSuchElementException("Commercial record not found.");
     }
 
@@ -31,7 +31,7 @@ class SalesAssistantRepository {
         var args = new ArrayList<Object>(List.of(user.companyId()));
         var definition = SalesDefinitions.definitions().get(collection(kind));
         var name = switch (kind) { case "customer" -> "company_name"; case "opportunity" -> "opportunity_name"; default -> "client_name"; };
-        var where = " FROM " + table(kind) + " e WHERE e.company_id = ? AND e.deleted_at IS NULL" + scopeSql(kind, scope, args);
+        var where = " FROM " + table(kind) + " e WHERE e.company_id = ? AND e.deleted_at IS NULL" + scopeSql(user, kind, scope, args);
         if (query.query() != null && !query.query().isBlank()) {
             where += " AND (LOCATE(LOWER(?), LOWER(e." + name + ")) > 0 OR LOCATE(LOWER(?), LOWER(e." + definition.codeColumnName() + ")) > 0)";
             args.add(query.query().trim()); args.add(query.query().trim());
@@ -63,7 +63,7 @@ class SalesAssistantRepository {
         var initial = flow.stages().stream().filter(stage -> stage.type().equals("OPEN")).findFirst().orElseThrow().key();
         var args = new ArrayList<Object>(java.util.Arrays.asList(
             initial, flow.id(), user.companyId(), flow.id()));
-        var scopeClause = scopeSql("opportunity", scope, args);
+        var scopeClause = scopeSql(user, "opportunity", scope, args);
         return jdbc.query("SELECT COALESCE(s.stage_key, CASE WHEN e.lifecycle_status = 'WON' THEN 'won'"
             + " WHEN e.lifecycle_status = 'LOST' THEN 'lost' ELSE ? END) pipeline_stage, e.lifecycle_status, e.currency, COUNT(*) n, SUM(e.estimated_value) amount"
             + " FROM sales_opportunities e LEFT JOIN sales_opportunity_flow_positions p ON p.company_id = e.company_id AND p.opportunity_id = e.id AND p.flow_id = ?"
@@ -81,8 +81,10 @@ class SalesAssistantRepository {
             + " JOIN users u ON u.id = uc.user_id LEFT JOIN user_profiles up ON up.user_id = u.id"
             + " LEFT JOIN user_work_profiles wp ON wp.company_id = uc.company_id AND wp.user_company_id = uc.id"
             + " WHERE uc.company_id = ? AND LOWER(COALESCE(uc.status, 'active')) IN ('active', 'activo')"
-            + scope.assignmentPredicate("wp.unit_id", "wp.business_id", "uc.company_id");
-        args.addAll(scope.assignmentParameters());
+            + (scope.type() == HrOperationalScope.Type.UNASSIGNED ? " AND uc.id = ?"
+                : scope.assignmentPredicate("wp.unit_id", "wp.business_id", "uc.company_id"));
+        if (scope.type() == HrOperationalScope.Type.UNASSIGNED) args.add(user.userCompanyId());
+        else args.addAll(scope.assignmentParameters());
         if (id != null) { sql += " AND uc.id = ?"; args.add(id); }
         if (query != null && !query.isBlank()) {
             sql += " AND (" + displayName + ") COLLATE utf8mb4_0900_ai_ci LIKE ? ESCAPE '='";
@@ -119,7 +121,12 @@ class SalesAssistantRepository {
             Integer.class, companyId, quoteId) > 0;
     }
 
-    private String scopeSql(String kind, HrOperationalScope scope, List<Object> args) {
+    private String scopeSql(AuthSessionUser user, String kind, HrOperationalScope scope, List<Object> args) {
+        // Individual distributors use their authenticated membership, never a caller-supplied owner.
+        if (scope.type() == HrOperationalScope.Type.UNASSIGNED) {
+            args.add(user.userCompanyId());
+            return " AND e." + (kind.equals("quote") ? "assigned_seller_user_company_id" : "owner_user_company_id") + " = ?";
+        }
         if (!kind.equals("quote")) {
             args.addAll(scope.assignmentParameters());
             return scope.assignmentPredicate("e.unit_id", "e.business_id", "e.company_id");

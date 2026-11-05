@@ -40,6 +40,12 @@ only the confirmation token and an idempotency key. A changed target requires fr
 Repeated execution returns the original result. The action appends memberships and records
 the change in the list and MCP audit histories.
 
+Capability discovery and request preflight use a current, nonlocking entitlement read. The
+Mailing owner revalidates and locks the entitlement inside the assignment transaction. Discovery
+must not require a caller transaction or make the entire MCP unavailable when assignment consent
+is present. Regressions exercise HTTP discovery, preview, commit and replay without an enclosing
+test transaction.
+
 ## 1. Purpose
 
 The Indice MCP is a delegated business interface, not a database gateway and not a second business

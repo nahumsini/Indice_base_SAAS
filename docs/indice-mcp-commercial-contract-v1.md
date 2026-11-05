@@ -23,7 +23,18 @@ Clients never submit company, user, role, unit or business authority. Assignee i
 `userCompanyId` values resolved from active commercial memberships in the actor's scope. New
 customers inherit the selected assignee's organization; new opportunities inherit the customer;
 quotes inherit commercial scope through their links. Reassignment preserves existing organization.
-Missing organizational scope fails closed. Duplicate names require user disambiguation.
+Duplicate names require user disambiguation.
+
+As approved on 2026-11-05 for distributors, an authenticated active membership without a wider
+organizational scope uses `SELF`: contacts/opportunities whose `owner_user_company_id` is that
+membership, and quotes whose `assigned_seller_user_company_id` is that membership. The same
+predicate applies to detail, search, page counts, pipeline totals, references and confirmed changes.
+Individual assignee search returns only the actor, preventing reassignment outside that portfolio.
+Self pagination binds the membership; a cursor cannot be reused by another distributor. Unassigned
+records and another distributor's records are excluded. Existing corporate/unit/business scopes,
+tenant isolation, exact module/tab permissions and separate read/write consent remain enforced.
+Missing active membership fails closed. This Sales-specific fallback does not change HR, Finance,
+warehouse visibility or Sales workflow scopes. Permission errors use safe, actionable MCP copy.
 
 ## Tools and business fields
 

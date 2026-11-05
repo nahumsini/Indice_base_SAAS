@@ -1,6 +1,6 @@
 {
   "version": "2026-10-23.v1",
-  "sourceDigest": "6d37a019690b281fecc11b5a52e50c19a7c39165482aac9af0f636c0bacb38bb",
+  "sourceDigest": "737a89d13aa8e4513a088acabdc1c20dec66391c6e662146a255c43ab67a31d2",
   "modules": [
     {
       "module": "ideas_board",
@@ -687,7 +687,7 @@
           "tab": "contacts",
           "label": "Contactos y clientes",
           "title": "Contactos y clientes",
-          "purpose": "Busca primero al cliente; revisa contacto, empresa, responsable y alcance.",
+          "purpose": "Busca primero al cliente; revisa contacto, empresa, responsable y alcance. En ChatGPT, los distribuidores sin un alcance organizacional mayor consultan únicamente los contactos asignados a su cuenta, según sus permisos.",
           "effect": "Relaciona oportunidades y cotizaciones con la misma identidad; un contacto no es una venta ni un ingreso.",
           "chapterId": "crm.contacts",
           "version": 3,
@@ -701,7 +701,7 @@
             {
               "id": "prepare",
               "title": "Antes de empezar",
-              "description": "Busca primero al cliente; revisa contacto, empresa, responsable y alcance."
+              "description": "Busca primero al cliente; revisa contacto, empresa, responsable y alcance. En ChatGPT, los distribuidores sin un alcance organizacional mayor consultan únicamente los contactos asignados a su cuenta, según sus permisos."
             },
             {
               "id": "operate",
@@ -719,7 +719,7 @@
           "tab": "leads",
           "label": "Oportunidades y flujos comerciales",
           "title": "Oportunidades y flujos comerciales",
-          "purpose": "Selecciona el flujo de venta correcto, cliente, responsable, valor, moneda y siguiente acción.",
+          "purpose": "Selecciona el flujo de venta correcto, cliente, responsable, valor, moneda y siguiente acción. Las consultas de ChatGPT respetan los permisos y la cartera asignada del distribuidor cuando no tiene un alcance organizacional mayor.",
           "effect": "Una etapa ganada requiere el cierre comercial compatible, no un cambio de etiqueta aislado. Revisa historial y próxima actividad; el valor potencial no es dinero cobrado.",
           "chapterId": "crm.leads",
           "version": 2,
@@ -733,7 +733,7 @@
             {
               "id": "prepare",
               "title": "Antes de empezar",
-              "description": "Selecciona el flujo de venta correcto, cliente, responsable, valor, moneda y siguiente acción."
+              "description": "Selecciona el flujo de venta correcto, cliente, responsable, valor, moneda y siguiente acción. Las consultas de ChatGPT respetan los permisos y la cartera asignada del distribuidor cuando no tiene un alcance organizacional mayor."
             },
             {
               "id": "operate",
@@ -3602,7 +3602,7 @@
           "tab": "contacts",
           "label": "Contacts and customers",
           "title": "Contacts and customers",
-          "purpose": "Search for the customer first; review contact details, company, owner and scope.",
+          "purpose": "Search for the customer first; review contact details, company, owner and scope. In ChatGPT, distributors without a broader organizational scope can only query contacts assigned to their account, according to their permissions.",
           "effect": "Link opportunities and quotations to the same identity; a contact is neither a sale nor revenue.",
           "chapterId": "crm.contacts",
           "version": 3,
@@ -3616,7 +3616,7 @@
             {
               "id": "prepare",
               "title": "Before starting",
-              "description": "Search for the customer first; review contact details, company, owner and scope."
+              "description": "Search for the customer first; review contact details, company, owner and scope. In ChatGPT, distributors without a broader organizational scope can only query contacts assigned to their account, according to their permissions."
             },
             {
               "id": "operate",
@@ -3634,7 +3634,7 @@
           "tab": "leads",
           "label": "Opportunities and commercial flows",
           "title": "Opportunities and commercial flows",
-          "purpose": "Select the correct sales flow, customer, owner, value, currency and next action.",
+          "purpose": "Select the correct sales flow, customer, owner, value, currency and next action. ChatGPT queries respect permissions and the distributor’s assigned portfolio when no broader organizational scope is available.",
           "effect": "A won stage requires the compatible commercial close, not an isolated label change. Review history and next activity; potential value is not collected money.",
           "chapterId": "crm.leads",
           "version": 2,
@@ -3648,7 +3648,7 @@
             {
               "id": "prepare",
               "title": "Before starting",
-              "description": "Select the correct sales flow, customer, owner, value, currency and next action."
+              "description": "Select the correct sales flow, customer, owner, value, currency and next action. ChatGPT queries respect permissions and the distributor’s assigned portfolio when no broader organizational scope is available."
             },
             {
               "id": "operate",

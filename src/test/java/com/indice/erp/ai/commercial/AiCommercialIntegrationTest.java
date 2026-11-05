@@ -239,6 +239,32 @@ class AiCommercialIntegrationTest {
         assertThat(count("sales_inventory_movements")).isZero();
     }
 
+    @Test void distributorChangesAndCursorsStayInsideTheAuthenticatedPortfolio() {
+        var mine = create("customer", Map.of("name", "Owned"));
+        var other = create("customer", Map.of("name", "Other", "ownerUserCompanyId", recipient[1]));
+        create("customer", Map.of("name", "Owned second"));
+        var self = new AuthSessionUser(actor[0], company, actor[1], "Distributor", "user");
+        var delegated = new StoredToken(token.id(), self, token.scopes());
+        var page = owner.list(self, "customer", new Query(null,null,null,null,null,null,1,null));
+        assertThat(page.scope()).isEqualTo("SELF");
+        assertThat(page.totalCount()).isEqualTo(2);
+        var next = new Query(null,null,null,null,null,null,1,page.nextCursor());
+        assertThat(owner.list(self, "customer", next).items()).hasSize(1);
+        var stranger = new AuthSessionUser(recipient[0], company, recipient[1], "Other", "user");
+        assertThatThrownBy(() -> owner.list(stranger, "customer", next)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> actions.preview(delegated, "update_customer", change(Map.of("id", other.id(), "notes", "Denied"))))
+            .isInstanceOf(NoSuchElementException.class);
+        assertThatThrownBy(() -> actions.preview(delegated, "update_customer", change(Map.of("id", mine.id(), "ownerUserCompanyId", recipient[1]))))
+            .isInstanceOf(NoSuchElementException.class);
+        var preview = actions.preview(delegated, "update_customer", change(Map.of("id", mine.id(), "notes", "Confirmed own edit")));
+        var commit = new CommitRequest(preview.confirmationToken(), "distributor-own-001");
+        assertThat(actions.commit(delegated, "update_customer", commit).record().notes()).isEqualTo("Confirmed own edit");
+        assertThat(actions.commit(delegated, "update_customer", commit).replayed()).isTrue();
+        assertThat(owner.detail(token.user(), "customer", other.id()).notes()).isNull();
+        assertThatThrownBy(() -> owner.list(new AuthSessionUser(actor[0], company, "Missing membership", "user"), "customer", null))
+            .isInstanceOf(SecurityException.class);
+    }
+
     private long product(long companyId,String visibility,String currency) {
         String code="TEST-"+UUID.randomUUID().toString().substring(0,16);
         jdbc.update("INSERT INTO sales_products(company_id,product_code,name,price,currency,status,visibility) VALUES (?,?,'Catalog product',10,?,'active',?)",companyId,code,currency,visibility);

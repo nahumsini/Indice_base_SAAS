@@ -192,7 +192,9 @@ public class AiToolAuthorizationService {
             && check(user, "tab", TabPermissionRequirement.one("crm.contacts"),
                 () -> tabPermissionAccessService.canAccess(user, TabPermissionRequirement.one("crm.contacts")))
             && (!assign || (com.indice.erp.sales.mailing.MailingService.manager(user)
-                && moduleAccessService.companyCanAccessForMutation(user.companyId(), "crm")));
+                // Discovery and preflight run without a transaction. Mailing's owner locks the
+                // entitlement again inside the complete assignment transaction.
+                && moduleAccessService.companyCanAccess(user.companyId(), "crm")));
     }
 
     public boolean canUseSalesWorkflowTool(AuthSessionUser user,String tool) {

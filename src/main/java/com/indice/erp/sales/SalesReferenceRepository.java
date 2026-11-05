@@ -7,6 +7,7 @@ import com.indice.erp.sales.SalesReferenceReadService.Warehouse;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -18,32 +19,42 @@ class SalesReferenceRepository {
     SalesReferenceRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     Page<Customer> customers(long companyId, HrOperationalScope scope, String query, int offset, int limit) {
-        return page(companyId, scope, query, offset, limit,
-            "sales_contacts", "contact_code", "company_name", "entity.unit_id", "entity.business_id",
+        return customerPage(companyId, scope.assignmentPredicate("entity.unit_id", "entity.business_id", "entity.company_id"),
+            scope.assignmentParameters(), query, offset, limit);
+    }
+
+    Page<Customer> customers(long companyId, long membership, HrOperationalScope scope, String query, int offset, int limit) {
+        if (scope.type() != HrOperationalScope.Type.UNASSIGNED) return customers(companyId, scope, query, offset, limit);
+        return customerPage(companyId, " AND entity.owner_user_company_id = ?", List.of(membership), query, offset, limit);
+    }
+
+    private Page<Customer> customerPage(long companyId, String scopeSql, List<Object> scopeArgs, String query, int offset, int limit) {
+        return page(companyId, scopeSql, scopeArgs, query, offset, limit,
+            "sales_contacts", "contact_code", "company_name",
             "id, contact_code, company_name, status, unit_id, business_id",
             (rs, row) -> new Customer(rs.getLong("id"), rs.getString("contact_code"), rs.getString("company_name"),
                 rs.getString("status"), nullableId(rs, "unit_id"), nullableId(rs, "business_id")));
     }
 
     Page<Warehouse> warehouses(long companyId, HrOperationalScope scope, String query, int offset, int limit) {
-        return page(companyId, scope, query, offset, limit,
+        return page(companyId, scope.assignmentPredicate(legacyIdentifier("business_unit_id"), legacyIdentifier("business_id"), "entity.company_id"),
+            scope.assignmentParameters(), query, offset, limit,
             "sales_inventory_warehouses", "warehouse_code", "name",
-            legacyIdentifier("business_unit_id"), legacyIdentifier("business_id"),
             "id, warehouse_code, name, type, status, business_unit_id, business_id",
             (rs, row) -> new Warehouse(rs.getLong("id"), rs.getString("warehouse_code"), rs.getString("name"),
                 rs.getString("type"), rs.getString("status"), nullableId(rs, "business_unit_id"), nullableId(rs, "business_id")));
     }
 
     // All identifiers below come from the two closed owner definitions above, never from a request.
-    private <T> Page<T> page(long companyId, HrOperationalScope scope, String query, int offset, int limit,
-            String table, String code, String name, String unit, String business, String columns, RowMapper<T> mapper) {
+    private <T> Page<T> page(long companyId, String scopeSql, List<Object> scopeArgs, String query, int offset, int limit,
+            String table, String code, String name, String columns, RowMapper<T> mapper) {
         var where = " FROM " + table + " entity WHERE entity.company_id = ? AND entity.deleted_at IS NULL"
-            + scope.assignmentPredicate(unit, business, "entity.company_id")
+            + scopeSql
             + " AND (LOCATE(LOWER(?), LOWER(COALESCE(entity." + name + ", ''))) > 0"
             + " OR LOCATE(LOWER(?), LOWER(COALESCE(entity." + code + ", ''))) > 0)";
         var params = new ArrayList<Object>();
         params.add(companyId);
-        params.addAll(scope.assignmentParameters());
+        params.addAll(scopeArgs);
         params.add(query);
         params.add(query);
         var count = jdbc.queryForObject("SELECT COUNT(*)" + where, Integer.class, params.toArray());
